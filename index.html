@@ -936,7 +936,7 @@ body.editing .edit-out{display:block}
    ===================================================================== */
 /* Отметка сборки: видно в консоли браузера (F12) и в подсказке логотипа.
    Нужна, чтобы отличать свежую версию от закэшированной. */
-const BUILD = '27.09.2026 03:40';
+const BUILD = '27.09.2026 13:10';
 
 /* Адрес рабочего сайта. Объявлен до ITEMS и DOCS: обе структуры собирают
    из него ссылки прямо при инициализации. */
@@ -1781,10 +1781,17 @@ const CERT = {
    мелочь — добить трудно именно поэтому. Число касаний живёт только здесь:
    любая подпись собирается из BOSS.hits. */
 const BOSS = {
-  /* Порог в ОЧКАХ. 30 000 — это около тысячи точных попаданий, то есть
-     обещанный на старте сертификат был недостижим за обычную партию.
-     12 000 — несколько минут уверенной игры, второй босс на 24 000. */
+  /* Порог в ОЧКАХ для ПЕРВОГО супер-кариеса. 30 000 — это около тысячи
+     точных попаданий, то есть обещанный на старте сертификат был недостижим
+     за обычную партию. */
   every:12000,
+  /* Следующий отсчитывается ОТ СЧЁТА В МОМЕНТ ПОБЕДЫ, а не от круглого
+     числа. Абсолютный порог не работал: пока идёт бой, игрок набивает очки
+     на мелочи, которую выплёвывает босс, и к моменту победы счёт уже
+     перепрыгивал следующую отметку — новый босс приходил сразу же, и так
+     по кругу. Плюс пауза по времени: даже очень результативная минута не
+     должна приводить к двум боссам подряд. */
+  repeat:20000, cooldown:35000,
   hits:50, r:70, fall:0.000034, alert:4800,
   col:'#4A1512', col2:'#7A2A22', spawnMin:1, spawnMax:3
 };
@@ -1797,7 +1804,7 @@ const G = {on:false, raf:0, score:0, best:0, lives:3, t:0, spawn:0,
            wave:0, waveT:0, banner:null, comboT:0, freeze:0, shake:0, pops:[],
            arcs:[], goldIn:GOLD.firstAt, chainSeen:false,
            finale:null, chunks:[], rings:[],
-           burs:[], armor:false, alert:0, boss:null, nextBossAt:BOSS.every,
+           burs:[], armor:false, alert:0, boss:null, nextBossAt:BOSS.every, bossCool:0,
            hunterIn:0, paused:false, toxicIn:TOXIC.firstAt, cert:null,
            heavyIn:HEAVY.firstIn};
 try{ G.best = +(localStorage.getItem('au-tour-best')||0) || 0; }catch(_){}
@@ -1877,7 +1884,7 @@ function gReset(){
   G.combo=0; G.mult=1; G.slow=0; G.wide=0; G.turbo=0; G.dbl=0;
   G.charge=0; queueBonus();
   G.superIn=SUPER.firstAt; G.shock=null; G.flashScreen=0;
-  G.burs=[]; G.armor=false; G.alert=0; G.boss=null; G.nextBossAt=BOSS.every;
+  G.burs=[]; G.armor=false; G.alert=0; G.boss=null; G.nextBossAt=BOSS.every; G.bossCool=0;
   G.hunterIn=0; G.toxicIn=TOXIC.firstAt; G.heavyIn=HEAVY.firstIn; setPause(false);
   G.wave=0; G.waveT=0; G.banner=null;
   G.comboT=0; G.freeze=0; G.shake=0; G.pops=[]; G.arcs=[];
@@ -2047,9 +2054,12 @@ function gStep(dt){
   const mdt = dt * (G.slow>0 ? 0.45 : 1);
 
   /* ---- супер-кариес: сначала тревога и пауза на зачистку ---- */
-  if(!G.boss && G.alert<=0 && G.score>=G.nextBossAt){
+  if(G.bossCool>0) G.bossCool-=dt;
+  if(!G.boss && G.alert<=0 && G.bossCool<=0 && G.score>=G.nextBossAt){
     G.alert = BOSS.alert;
-    G.nextBossAt += BOSS.every;
+    /* Отметку снимаем совсем: следующую назначит rearmBoss, когда бой
+       закончится. Иначе она осталась бы позади растущего счёта. */
+    G.nextBossAt = Infinity;
   }
   if(G.alert>0){
     G.alert -= dt;
@@ -2271,7 +2281,7 @@ function gStep(dt){
     if(b.y > 0.86 && b.vy>0){
       G.blobs.splice(i,1);
       if(b.bonus || b.superb || b.gold) continue;  /* не добили — просто ушёл */
-      if(b.boss) G.boss=null;
+      if(b.boss){ G.boss=null; rearmBoss(); }   /* дошёл до зуба — тоже перевзводим */
       G.combo=0; G.mult=1; gCombo();
       if(G.armor){                              /* броня принимает удар на себя */
         G.armor=false; gArmor();
@@ -2480,10 +2490,17 @@ function bossSpit(b){
     G.blobs.push(c);
   }
 }
+/* Взводим следующего супер-кариеса ОТ ТЕКУЩЕГО счёта. Вызывается в обоих
+   исходах боя: и когда босса добили, и когда он дошёл до зуба. */
+function rearmBoss(){
+  G.nextBossAt = G.score + BOSS.repeat;
+  G.bossCool   = BOSS.cooldown;
+}
 function bossDown(b,i){
   G.blobs.splice(i,1); G.boss=null;
   const swept=wipeBoard(2, 600);
   G.lives=Math.min(3,G.lives+1); gHearts();
+  rearmBoss();                       /* строго ПОСЛЕ начисления очков */
   startFinale(b.x, b.y, swept);
 }
 
