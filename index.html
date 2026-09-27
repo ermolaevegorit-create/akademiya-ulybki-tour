@@ -1,0 +1,3457 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Экскурсия по клинике — Академия улыбки</title>
+<meta name="description" content="Интерактивная экскурсия по клинике «Академия улыбки»: пройдите по кабинетам и посмотрите оборудование, на котором вас лечат.">
+<meta name="theme-color" content="#ffffff">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&family=Prata&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#FFFFFF; --ink:#14161A; --ink-2:#4B5058; --mute:#5F646D;
+  --hair:rgba(20,22,26,.14); --hair-2:rgba(20,22,26,.07); --tint:#F5F6F8;
+  --navy:#1B3D96; --navy-d:#15307A; --teal:#2F7E86;
+  --serif:"Prata",Georgia,"Times New Roman",serif;
+  --sans:"Golos Text",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --t-fast:.2s; --t-std:.4s; --ease:cubic-bezier(.2,.7,.2,1);
+  --panel:min(420px,100vw);
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;background:var(--ink);color:var(--ink);
+  font:400 16px/1.5 var(--sans);
+  -webkit-font-smoothing:antialiased;overscroll-behavior:none;
+}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+img{display:block;max-width:100%}
+
+/* ---------- shell ---------- */
+.tour{position:fixed;inset:0;display:flex;flex-direction:column;background:#0C0E12}
+
+/* ---------- top bar ---------- */
+.bar{
+  position:relative;z-index:40;flex:0 0 auto;
+  /* viewport-fit=cover в meta — без этих отступов шапка и док уезжают
+     под чёлку и под домашнюю полосу айфона. */
+  height:calc(64px + env(safe-area-inset-top));
+  padding-top:env(safe-area-inset-top);
+  display:flex;align-items:center;gap:16px;
+  padding-left:clamp(14px,3vw,28px);padding-right:clamp(14px,3vw,28px);
+  background:rgba(12,14,18,.72);backdrop-filter:blur(14px);
+  border-bottom:1px solid rgba(255,255,255,.10);color:#fff;
+}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.brand svg{flex:0 0 auto}
+.brand b{font:400 17px/1 var(--serif);letter-spacing:.01em;white-space:nowrap}
+.bar .sep{width:1px;height:22px;background:rgba(255,255,255,.18)}
+.bar .where{font-size:14px;color:rgba(255,255,255,.62);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar .grow{flex:1 1 auto}
+.exit{
+  display:inline-flex;align-items:center;gap:8px;padding:9px 15px;border-radius:2px;
+  border:1px solid rgba(255,255,255,.24);color:#fff;font-size:14px;text-decoration:none;
+  transition:background var(--t-fast) var(--ease),border-color var(--t-fast) var(--ease);
+}
+.exit:hover{background:rgba(255,255,255,.10);border-color:rgba(255,255,255,.45)}
+
+/* ---------- stage ---------- */
+.stage{position:relative;flex:1 1 auto;min-height:0;display:grid;place-items:center;overflow:hidden;touch-action:none}
+/* Размер .frame задаётся в JS (fit()) и всегда точно равен кадру фото —
+   поэтому проценты точек совпадают со снимком на любом экране. */
+/* Кадр центрируем абсолютным позиционированием, а не гридом: дорожка
+   грида растягивалась по кадру, который на телефоне шире экрана, и
+   place-items:center уже ничего не центрировал — свайп открывал пустоту.
+   translate отдельным свойством, потому что transform занят панорамой. */
+.frame{position:absolute;left:50%;top:50%;translate:-50% -50%;will-change:transform}
+.frame img.scene{width:100%;height:100%;object-fit:fill;user-select:none;-webkit-user-drag:none}
+.stage.pannable{cursor:grab}
+.stage.pannable:active{cursor:grabbing}
+.pan-hint{
+  position:absolute;left:50%;top:14px;translate:-50% 0;z-index:22;
+  padding:7px 13px;border-radius:2px;background:rgba(12,14,18,.7);color:#fff;
+  font-size:12px;backdrop-filter:blur(6px);pointer-events:none;
+  transition:opacity var(--t-std) var(--ease);
+}
+.scene-fade{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;transition:opacity .3s var(--ease);z-index:16}
+.tour.moving .scene-fade{opacity:1}
+
+/* vignette so white rooms don't blow out the UI */
+.frame::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(120% 90% at 50% 45%,transparent 55%,rgba(10,12,16,.30) 100%);
+}
+
+/* ---------- hotspots ---------- */
+/* Кнопка 40px — комфортная зона нажатия; видимый кружок меньше (inset). */
+.spot{
+  position:absolute;translate:-50% -50%;z-index:10;
+  width:40px;height:40px;display:grid;place-items:center;
+  border-radius:50%;
+}
+/* Клиника снята на белом фоне, поэтому точка должна держаться и на светлом:
+   белая заливка с синей кромкой плюс тонкий светлый ореол снаружи. */
+.spot .ring{
+  position:absolute;inset:8px;border-radius:50%;
+  border:1.5px solid rgba(27,61,150,.8);
+  background:rgba(255,255,255,.62);
+  box-shadow:0 0 0 2px rgba(255,255,255,.5), 0 2px 7px rgba(10,12,16,.22);
+  transition:inset var(--t-fast) var(--ease),background var(--t-fast) var(--ease),border-color var(--t-fast) var(--ease);
+}
+.spot .dot{
+  position:relative;width:5px;height:5px;border-radius:50%;
+  background:var(--navy);
+  transition:background var(--t-fast) var(--ease);
+}
+.spot::before{
+  content:"";position:absolute;inset:4px;border-radius:50%;
+  border:1.5px solid rgba(27,61,150,.5);
+  animation:pulse 2.8s var(--ease) infinite;
+}
+@keyframes pulse{0%{transform:scale(.7);opacity:.8}70%{transform:scale(1.35);opacity:0}100%{opacity:0}}
+.spot:hover .ring,.spot:focus-visible .ring{
+  inset:4px;background:var(--navy);border-color:#fff;
+}
+.spot:hover .dot,.spot:focus-visible .dot{background:#fff}
+.spot.seen .ring{background:var(--navy);border-color:rgba(255,255,255,.85)}
+.spot.seen .dot{background:#fff}
+.spot.seen::before{animation:none;opacity:0}
+/* Активная ОБЛАСТЬ: подсвечивается сам предмет, а не точка рядом с ним.
+   Многоугольник в процентах кадра, поэтому перспектива не ломается. */
+.spot.area{
+  left:0;top:0;translate:none;width:100%;height:100%;
+  border-radius:0;display:block;pointer-events:none;
+}
+.spot.area::before{display:none}
+/* Сам кадр не трогаем — ни затемнения, ни заливки. От экрана расходятся
+   волны: контур повторяет форму экрана, растёт наружу и тает. Линия белая
+   с тёмной тенью, поэтому одинаково читается и на светлой стене, и на
+   чёрной рамке телевизора. */
+.spot.area .wave{
+  position:absolute;inset:0;width:100%;height:100%;display:block;
+  overflow:visible;pointer-events:none;
+}
+.spot.area .wave polygon{
+  fill:none;stroke:#fff;stroke-width:2;vector-effect:non-scaling-stroke;
+  stroke-linejoin:round;
+  filter:drop-shadow(0 0 2px rgba(15,25,50,.9));
+  transform-origin:var(--cx) var(--cy);   /* центр экрана в единицах viewBox */
+  animation:ripple 3s cubic-bezier(.2,.6,.3,1) infinite;
+}
+.spot.area .wave polygon:nth-child(2){animation-delay:1.5s}
+@keyframes ripple{
+  0%  {transform:scale(1);    opacity:0}
+  12% {opacity:.75}
+  100%{transform:scale(1.34); opacity:0}
+}
+/* Зона клика: тот же многоугольник, но ничего не рисует. clip-path режет
+   и попадание курсора, так что нажатие срабатывает строго по экрану. */
+.spot.area .lit{
+  position:absolute;inset:0;display:block;
+  pointer-events:auto;cursor:pointer;
+  clip-path:var(--poly);
+  transition:background var(--t-fast) var(--ease);
+}
+/* Наведение НЕ останавливает волны: остановка читается как поломка, будто
+   анимация сломалась ровно там, куда навели. Наоборот — волны учащаются и
+   становятся ярче, и всплывает плашка с акцией: понятно, что надо нажать. */
+.spot.area:hover .wave polygon,.spot.area:focus-within .wave polygon{
+  animation-duration:1.4s;stroke-width:2.6;
+}
+/* Плашка акции. Сидит по центру экрана телевизора: координаты считаются
+   из того же многоугольника, поэтому она не разъедется с подсветкой. */
+.spot.area .promo{
+  position:absolute;left:var(--px);top:var(--py);translate:-50% -50%;
+  display:flex;align-items:center;gap:8px;white-space:nowrap;
+  padding:9px 15px;background:var(--navy);color:#fff;border-radius:2px;
+  font-size:13px;letter-spacing:.02em;
+  box-shadow:0 8px 28px rgba(10,12,16,.35);
+  opacity:0;transform:translateY(6px) scale(.96);pointer-events:none;
+  transition:opacity var(--t-fast) var(--ease),transform var(--t-fast) var(--ease);
+}
+.spot.area .promo::before{
+  content:'';width:7px;height:7px;border-radius:50%;background:#7FE3A1;
+  box-shadow:0 0 0 3px rgba(127,227,161,.25);
+}
+.spot.area:hover .promo,.spot.area:focus-within .promo{
+  opacity:1;transform:translateY(0) scale(1);
+}
+/* После просмотра волны не пропадают совсем: телевизор — это игра, в неё
+   возвращаются. Просто становятся реже и слабее. */
+.spot.area.seen .wave polygon{animation-duration:4.6s;opacity:.6}
+
+.spot .tip{
+  position:absolute;bottom:calc(100% + 10px);left:50%;translate:-50% 0;
+  padding:7px 11px;border-radius:2px;background:#fff;color:var(--ink);
+  font-size:13px;line-height:1.2;white-space:nowrap;
+  box-shadow:0 6px 24px rgba(10,12,16,.28);
+  opacity:0;transform:translateY(4px);pointer-events:none;
+  transition:opacity var(--t-fast) var(--ease),transform var(--t-fast) var(--ease);
+}
+.spot:hover .tip,.spot:focus-visible .tip{opacity:1;transform:translateY(0)}
+
+/* ---------- move arrows ---------- */
+.go{
+  position:absolute;translate:-50% -50%;z-index:12;
+  display:flex;flex-direction:column;align-items:center;gap:7px;
+}
+.go .disc{
+  width:38px;height:38px;border-radius:50%;display:grid;place-items:center;
+  /* .26 давало на тёмной стене контраст 1.55:1 — стрелку было не видно */
+  background:rgba(255,255,255,.74);color:var(--navy);
+  border:1px solid rgba(255,255,255,.42);backdrop-filter:blur(3px);
+  box-shadow:0 1px 8px rgba(10,12,16,.13);
+  transition:transform var(--t-fast) var(--ease),background var(--t-fast) var(--ease),
+             border-color var(--t-fast) var(--ease),box-shadow var(--t-fast) var(--ease);
+}
+/* направление задаётся полем dir у ссылки: up | right | down | left */
+.go .disc svg{transform:rotate(var(--rot,0deg));transition:transform var(--t-fast) var(--ease)}
+.go:hover .disc,.go:focus-visible .disc{
+  transform:scale(1.12);background:rgba(255,255,255,.96);
+  border-color:#fff;box-shadow:0 4px 18px rgba(10,12,16,.28);
+}
+.go:hover .disc svg,.go:focus-visible .disc svg{transform:rotate(var(--rot,0deg)) translateY(-2px)}
+/* Подпись появляется только при наведении — в покое кадр остаётся чистым. */
+.go .cap{
+  position:absolute;top:calc(100% + 7px);left:50%;translate:-50% 0;
+  padding:5px 10px;border-radius:2px;background:rgba(12,14,18,.88);color:#fff;
+  font-size:12px;white-space:nowrap;backdrop-filter:blur(6px);
+  opacity:0;transform:translateY(-4px);pointer-events:none;
+  transition:opacity var(--t-fast) var(--ease),transform var(--t-fast) var(--ease);
+}
+.go:hover .cap,.go:focus-visible .cap{opacity:1;transform:translateY(0)}
+/* Метка кабинета — её видно всегда, иначе двери не отличить друг от друга */
+.go .tag{
+  position:absolute;top:calc(100% + 6px);left:50%;translate:-50% 0;
+  min-width:20px;height:20px;padding:0 6px;border-radius:2px;
+  display:grid;place-items:center;
+  font-size:11px;font-weight:600;line-height:1;white-space:nowrap;
+  transition:opacity var(--t-fast) var(--ease);
+}
+.go:hover .tag,.go:focus-visible .tag{opacity:0}
+.go .tag.r1{background:rgba(27,61,150,.9);color:#fff}
+.go .tag.r2{background:rgba(47,126,134,.92);color:#fff}
+.go.room1 .disc{border-color:rgba(27,61,150,.55);color:var(--navy)}
+.go.room2 .disc{border-color:rgba(47,126,134,.6);color:var(--teal)}
+
+/* ---------- room caption ---------- */
+.caption{
+  position:absolute;left:clamp(14px,3vw,28px);bottom:clamp(14px,3vw,24px);z-index:14;
+  max-width:min(440px,60vw);color:#fff;text-shadow:0 2px 20px rgba(10,12,16,.6);
+  pointer-events:none;
+}
+.caption h1{margin:0 0 6px;font:400 clamp(22px,3.2vw,32px)/1.15 var(--serif)}
+.caption p{margin:0;font-size:14px;line-height:1.45;color:rgba(255,255,255,.82)}
+.caption .kit{
+  margin-top:12px;pointer-events:auto;display:inline-flex;align-items:center;gap:9px;
+  padding:9px 14px;border-radius:2px;background:rgba(255,255,255,.94);color:var(--ink);
+  font-size:14px;text-shadow:none;
+  transition:background var(--t-fast) var(--ease)
+}
+.caption .kit:hover{background:#fff}
+.caption .kit[hidden]{display:none}
+.caption .kit b{font-weight:600;color:var(--navy)}
+
+/* ---------- dock ---------- */
+.dock{
+  position:relative;z-index:40;flex:0 0 auto;
+  display:flex;gap:8px;align-items:center;
+  padding:12px clamp(14px,3vw,28px);
+  padding-bottom:calc(12px + env(safe-area-inset-bottom));
+  color:#fff;
+  background:rgba(12,14,18,.72);backdrop-filter:blur(14px);
+  border-top:1px solid rgba(255,255,255,.10);
+  overflow-x:auto;scrollbar-width:none;
+}
+.dock::-webkit-scrollbar{display:none}
+.chip{
+  flex:0 0 auto;padding:9px 14px;border-radius:2px;
+  border:1px solid rgba(255,255,255,.18);color:rgba(255,255,255,.78);
+  font-size:14px;white-space:nowrap;
+  transition:all var(--t-fast) var(--ease);
+}
+.chip:hover{border-color:rgba(255,255,255,.5);color:#fff}
+.chip[aria-current="true"]{background:#fff;color:var(--ink);border-color:#fff;font-weight:500}
+
+/* ---------- panel ---------- */
+.scrim{
+  position:fixed;inset:0;z-index:50;background:rgba(10,12,16,.5);
+  opacity:0;pointer-events:none;transition:opacity var(--t-std) var(--ease);
+}
+.scrim.on{opacity:1;pointer-events:auto}
+.panel{
+  position:fixed;top:0;right:0;bottom:0;z-index:60;width:var(--panel);
+  background:var(--bg);display:flex;flex-direction:column;
+  transform:translateX(100%);transition:transform var(--t-std) var(--ease);
+  box-shadow:-20px 0 60px rgba(10,12,16,.3);
+}
+.panel.on{transform:none}
+.panel-head{
+  flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:18px 20px;border-bottom:1px solid var(--hair-2);
+}
+.panel-head span{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--mute)}
+.close{width:36px;height:36px;display:grid;place-items:center;border-radius:2px;color:var(--ink-2)}
+.close:hover{background:var(--tint);color:var(--ink)}
+.panel-body{flex:1 1 auto;overflow-y:auto;padding:22px 20px 40px;-webkit-overflow-scrolling:touch}
+/* возврат в список, из которого открыта карточка */
+.pback{
+  display:inline-flex;align-items:center;gap:7px;
+  margin:0 0 16px;padding:7px 12px 7px 9px;border-radius:2px;
+  border:1px solid var(--hair-2);color:var(--ink-2);font-size:13px;
+  transition:all var(--t-fast) var(--ease);
+}
+.pback:hover{border-color:var(--navy);color:var(--navy);background:var(--tint)}
+.panel-body .shot{
+  background:var(--tint);border:1px solid var(--hair-2);
+  aspect-ratio:1;display:grid;place-items:center;padding:18px;margin-bottom:20px;
+}
+.panel-body .shot img{max-height:100%;width:auto;object-fit:contain}
+.panel-body h2{margin:0 0 6px;font:400 24px/1.2 var(--serif)}
+.panel-body .model{margin:0 0 18px;font-size:13px;color:var(--teal);letter-spacing:.02em}
+.panel-body h3{
+  margin:22px 0 7px;font-size:12px;font-weight:600;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--mute);
+}
+.panel-body p{margin:0;color:var(--ink-2);line-height:1.6}
+.panel-body .why{
+  margin-top:22px;padding:16px;background:var(--tint);border-left:2px solid var(--navy);
+}
+.panel-body .why h3{margin-top:0;color:var(--navy)}
+.panel-body .why p{color:var(--ink)}
+.flag{
+  margin-top:22px;padding:11px 13px;border:1px dashed var(--hair);
+  font-size:13px;color:var(--mute);line-height:1.45;
+}
+.kitgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px}
+.kitgrid button{
+  border:1px solid var(--hair-2);padding:14px 12px 12px;text-align:left;
+  transition:border-color var(--t-fast) var(--ease),background var(--t-fast) var(--ease);
+}
+.kitgrid button:hover{border-color:var(--navy);background:var(--tint)}
+.kitgrid img{aspect-ratio:1;object-fit:contain;margin-bottom:10px}
+.kitgrid em{display:block;font-style:normal;font-size:13px;line-height:1.35;color:var(--ink)}
+
+/* ---------- документы: раскрывающиеся вкладки ---------- */
+.doc{border-top:1px solid var(--hair-2)}
+.doc:first-of-type{border-top:0}
+.doc summary{
+  list-style:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:14px 0;font-size:14px;font-weight:600;color:var(--ink);
+}
+.doc summary::-webkit-details-marker{display:none}
+.doc summary:hover{color:var(--navy)}
+.doc summary .chev{flex:0 0 auto;color:var(--mute);transition:transform var(--t-fast) var(--ease)}
+.doc[open] summary .chev{transform:rotate(180deg)}
+.doc-body{padding:0 0 18px}
+/* галерея документов: дипломы, сертификаты, аккредитация */
+.docgal{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px}
+.docgal button{
+  display:block;width:100%;text-align:left;cursor:pointer;
+  background:none;border:1px solid var(--hair-2);padding:8px;font:inherit;
+  transition:border-color var(--t-fast) var(--ease);
+}
+.docgal button:hover{border-color:var(--navy)}
+/* Документы альбомные — показываем их целиком, без обрезки: скан,
+   у которого срезали печать, доверия не прибавляет. */
+.docgal img{
+  width:100%;aspect-ratio:4/3;object-fit:contain;background:var(--tint);
+}
+.docgal em{
+  display:block;margin-top:7px;font-style:normal;font-size:12px;
+  line-height:1.35;color:var(--ink);
+}
+.docgal em span{display:block;margin-top:2px;font-size:11.5px;color:var(--mute)}
+
+/* Просмотр скана поверх страницы.
+   Класс НЕ .shot: так называется фотография внутри карточки оборудования,
+   и полноэкранные правила доставались ей — карточка превращалась
+   в непрозрачную плашку на весь экран. */
+.docview{
+  position:fixed;inset:0;z-index:90;display:none;
+  align-items:center;justify-content:center;
+  background:rgba(10,12,16,.92);
+  padding:72px 56px calc(28px + env(safe-area-inset-bottom));
+}
+.docview.on{display:flex}
+.docview img{
+  max-width:100%;max-height:100%;object-fit:contain;background:#fff;
+  cursor:zoom-in;
+}
+/* Документы альбомные, а телефон вертикальный: вписанный скан выходит
+   мелким и печать на нём не прочесть. По тапу разворачиваем его во всю
+   высоту и даём листать вбок — читать становится можно. */
+.docview.zoom{display:block;overflow:auto;padding:58px 0 62px;
+  -webkit-overflow-scrolling:touch}
+.docview.zoom img{
+  max-width:none;max-height:none;height:calc(100svh - 120px);width:auto;
+  cursor:zoom-out;display:block;
+}
+/* Шапка и стрелки закреплены по экрану, а не по содержимому: в увеличенном
+   виде документ прокручивается вбок, и абсолютные элементы уезжали вместе
+   с ним — подпись и кнопка закрытия пропадали за краем. */
+.shot-bar{
+  position:fixed;top:0;left:0;right:0;display:flex;align-items:center;gap:14px;
+  padding:14px 16px;color:#fff;
+  background:linear-gradient(rgba(10,12,16,.92),rgba(10,12,16,0));
+}
+.shot-cap{flex:1 1 auto;min-width:0}
+.shot-cap b{display:block;font-weight:500;font-size:14px}
+.shot-cap span{display:block;font-size:12px;color:rgba(255,255,255,.62)}
+.shot-num{flex:0 0 auto;font-size:12px;color:rgba(255,255,255,.62)}
+.shot-x,.shot-nav{
+  flex:0 0 auto;display:flex;align-items:center;justify-content:center;
+  width:38px;height:38px;border:1px solid rgba(255,255,255,.28);
+  background:none;color:#fff;cursor:pointer;border-radius:2px;
+  transition:background var(--t-fast) var(--ease);
+}
+.shot-x:hover,.shot-nav:hover{background:rgba(255,255,255,.14)}
+.shot-nav{position:fixed;top:50%;translate:0 -50%;
+  background:rgba(10,12,16,.55);backdrop-filter:blur(2px)}
+.shot-nav.prev{left:12px}
+.shot-nav.next{right:12px}
+@media (max-width:620px){
+  .docview{padding:72px 10px 74px}
+  .shot-nav{top:auto;bottom:12px;translate:none}
+  .shot-nav{bottom:calc(12px + env(safe-area-inset-bottom))}
+  .shot-nav.prev{left:calc(50% - 46px)}
+  .shot-nav.next{right:calc(50% - 46px)}
+}
+.doc h3{margin:0 0 12px}
+
+/* Запись в мессенджер. Три равные кнопки подряд размывали действие, поэтому
+   главный канал — одной крупной кнопкой, а остальные тихой строкой под ней:
+   человеку не нужно выбирать, но запасной путь на виду. */
+.wabox{margin-top:22px}
+.walabel{
+  display:block;margin-bottom:10px;font-size:12px;letter-spacing:.04em;
+  text-transform:uppercase;color:var(--mute);
+}
+.wa{
+  display:flex;align-items:center;justify-content:center;gap:9px;
+  padding:14px 18px;border-radius:2px;background:var(--navy);color:#fff;
+  font-size:14px;text-decoration:none;
+  transition:background var(--t-fast) var(--ease);
+}
+.wa:hover{background:var(--navy-d)}
+.wa svg{flex:none}
+.waalt{
+  display:flex;align-items:center;flex-wrap:wrap;gap:8px 16px;
+  margin-top:11px;font-size:13px;color:var(--mute);
+}
+.waalt a{
+  display:inline-flex;align-items:center;gap:6px;
+  color:var(--navy);text-decoration:none;padding-bottom:1px;
+  border-bottom:1px solid rgba(27,61,150,.25);
+  transition:border-color var(--t-fast) var(--ease);
+}
+.waalt a:hover{border-bottom-color:var(--navy)}
+.waalt svg{flex:none;color:var(--ch)}
+
+/* информационный блок последним лотом каталога */
+.kitnote{
+  grid-column:1 / -1;display:flex;flex-direction:column;gap:7px;
+  padding:16px;background:var(--tint);border-left:2px solid var(--navy);
+}
+.kitnote b{font-size:14px;color:var(--ink)}
+.kitnote span{font-size:13px;line-height:1.5;color:var(--ink-2)}
+.rows{margin:0;display:grid;grid-template-columns:minmax(96px,38%) 1fr;gap:9px 14px}
+.rows dt{font-size:13px;color:var(--mute)}
+.rows dd{margin:0;font-size:14px;line-height:1.45;color:var(--ink)}
+.memo{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:9px}
+.memo li{font-size:14px;line-height:1.5;color:var(--ink-2)}
+.docnote{margin-top:12px;font-size:13px;line-height:1.5;color:var(--ink-2)}
+.doclink{
+  margin-top:14px;display:inline-flex;align-items:center;gap:7px;
+  color:var(--navy);font-size:14px;text-decoration:none;
+  border-bottom:1px solid rgba(27,61,150,.3);padding-bottom:2px;
+}
+.doclink:hover{border-bottom-color:var(--navy)}
+
+/* ---------- фильтры каталога ---------- */
+.filters{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 16px}
+.filters button{
+  padding:7px 12px;border:1px solid var(--hair-2);font-size:13px;color:var(--ink-2);
+  transition:all var(--t-fast) var(--ease);
+}
+.filters button:hover{border-color:var(--hair);color:var(--ink)}
+.filters button[aria-current="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
+.kitgrid i{display:block;margin-top:4px;font-style:normal;font-size:11px;color:var(--mute)}
+
+/* ---------- игра ---------- */
+.game{
+  position:fixed;inset:0;z-index:85;display:none;flex-direction:column;
+  background:var(--tint);
+}
+.game.on{display:flex}
+/* Шапка не переносится никогда: правая группа (жизни, пауза, выход)
+   не сжимается и не уезжает, левая обрезается по мере надобности. */
+.game-head{
+  flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;
+  gap:12px;flex-wrap:nowrap;
+  padding:12px clamp(12px,3vw,26px);border-bottom:1px solid var(--hair-2);
+  background:#fff;
+}
+.gh-left{display:flex;align-items:center;gap:14px;min-width:0;overflow:hidden}
+.gh-right{display:flex;align-items:center;gap:14px;flex:0 0 auto}
+.g-title{font:400 17px/1 var(--serif);white-space:nowrap}
+
+.g-stat{font-size:13px;color:var(--mute);font-variant-numeric:tabular-nums;white-space:nowrap}
+.g-stat i{font-style:normal}
+.g-stat b{font-weight:600;color:var(--ink);margin-left:5px}
+.g-combo{
+  font-size:13px;font-weight:600;color:var(--navy);min-width:26px;
+  font-variant-numeric:tabular-nums;transition:transform var(--t-fast) var(--ease);
+}
+.g-combo.hot{transform:scale(1.25)}
+.g-charge{display:flex;align-items:center;gap:7px}
+.g-charge i{width:10px;height:10px;border-radius:50%;flex:0 0 auto;background:var(--navy)}
+.g-bar{display:block;width:64px;height:4px;background:var(--hair-2);overflow:hidden}
+.g-bar b{display:block;height:100%;width:0;background:var(--navy);transition:width .18s linear}
+/* Приз на стартовом экране: две суммы в ряд, между ними «или».
+   Это единственное, что нужно знать до начала, — остальное объясняет игра. */
+.g-prize{margin-bottom:16px!important}
+.g-prize-row{
+  display:flex;align-items:stretch;justify-content:center;gap:12px;
+  margin:0 0 22px;
+}
+.g-prize-row .opt{
+  flex:1 1 0;min-width:0;padding:13px 12px;background:var(--tint);
+  border-left:2px solid var(--navy);text-align:left;
+}
+.g-prize-row .opt b{
+  display:block;font:400 24px/1.1 var(--serif);color:var(--navy);margin-bottom:3px;
+  white-space:nowrap;
+}
+/* Подпись — одно слово, переносить нечего. Если когда-нибудь появится
+   услуга из двух слов, она ужмётся по размеру, а не разорвётся. */
+.g-prize-row .opt span{
+  display:block;font-size:12.5px;line-height:1.25;color:var(--ink-2);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.g-prize-row .or{
+  align-self:center;font-size:12.5px;color:var(--mute);flex:0 0 auto;
+}
+.g-ctrl{display:block;margin-top:14px;font-size:12px;color:var(--mute)}
+.g-exit{
+  display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border-radius:2px;
+  border:1px solid var(--hair);color:var(--ink-2);font-size:14px;
+  transition:all var(--t-fast) var(--ease);
+}
+.g-exit:hover{background:var(--err,#B3261E);border-color:var(--err,#B3261E);color:#fff}
+.g-armor{display:inline-flex;color:#C2701A}
+.g-armor[hidden]{display:none}
+.g-lives{display:inline-flex;gap:3px;font-size:16px;line-height:1}
+.hz{position:relative;display:inline-block;color:rgba(20,22,26,.16)}
+.hz i{
+  position:absolute;left:0;top:0;overflow:hidden;
+  color:#B3261E;font-style:normal;white-space:nowrap;
+}
+/* Поле ограничено рамкой: во весь экран играть неудобно — бор приходится
+   таскать через всё пространство. На телефоне рамка снимается. */
+.game-stage{
+  position:relative;flex:1 1 auto;min-height:0;
+  display:grid;place-items:center;padding:16px;
+}
+.arena{
+  position:relative;width:100%;height:100%;
+  max-width:min(100%, 720px); max-height:min(100%, 860px);
+  background:linear-gradient(180deg,#EAF0FA 0%,#F7F9FC 58%,#FFFFFF 100%);
+  border:1px solid var(--hair);
+  box-shadow:0 12px 44px rgba(10,12,16,.12);
+  overflow:hidden;
+}
+#gameCanvas{position:absolute;inset:0;touch-action:none;cursor:none;display:block}
+.g-card{
+  /* width задан явно: при width:auto и left:50% ширина считается
+     от половины контейнера, и карточка выходила вдвое уже задуманного. */
+  width:min(340px, calc(100% - 32px));
+  position:absolute;left:50%;top:50%;translate:-50% -50%;
+  background:#fff;padding:28px 30px;text-align:center;max-width:340px;
+  box-shadow:0 20px 60px rgba(10,12,16,.18);
+}
+.g-card h3{margin:0 0 10px;font:400 22px/1.2 var(--serif)}
+.g-card p{margin:0 0 20px;font-size:14px;line-height:1.55;color:var(--ink-2)}
+.g-card b{font-variant-numeric:tabular-nums;color:var(--ink)}
+.g-card button{
+  padding:12px 26px;background:var(--navy);color:#fff;font-size:15px;
+  transition:background var(--t-fast) var(--ease);
+}
+.g-card button:hover{background:var(--navy-d)}
+.g-card.wide{
+  width:min(420px, calc(100% - 32px));max-width:420px;
+  /* 100% резолвится по .game-stage, который уже посчитан флексом:
+     карточка не залезает на шапку и не уходит под нижнюю кромку. */
+  max-height:100%;overflow-y:auto;padding:24px 26px;
+}
+.g-card[hidden]{display:none}
+.rw-kicker{
+  display:block;font-size:12px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--teal);margin-bottom:8px;
+}
+.rw-kicker b{font-variant-numeric:tabular-nums}
+/* Сумма с услугой — отдельной строкой целиком: в общем потоке строка
+   рвалась на «5000 ₽ на / имплантацию», отрывая предлог от слова. */
+.rw-won{margin:0 0 4px!important;font-size:13.5px!important;color:var(--mute)!important}
+.rw-won b{
+  display:block;margin-top:3px;font:400 19px/1.25 var(--serif);
+  color:var(--navy);white-space:nowrap;
+}
+.rw-back{
+  display:inline-flex!important;align-items:center;gap:7px;width:auto!important;
+  margin-top:12px!important;padding:6px 2px!important;
+  background:none!important;border:0!important;color:var(--mute)!important;
+  font-size:12.5px!important;cursor:pointer;
+  transition:color var(--t-fast) var(--ease);
+}
+.rw-back:hover{color:var(--navy)!important}
+#rwImg{width:100%;border:1px solid var(--hair-2);margin:14px 0 12px}
+.rw-code{
+  margin:0 0 16px!important;font-size:13px!important;color:var(--mute)!important;
+  font-variant-numeric:tabular-nums;
+}
+/* Код не переносим: разорванный посередине, он читается как два разных
+   кода, а его человеку диктовать администратору. */
+.rw-code b{color:var(--ink);font-weight:600;white-space:nowrap}
+.rw-btns{display:flex;gap:8px;margin-bottom:12px}
+.rw-btns button{flex:1 1 0;padding:12px 10px;font-size:14px}
+/* На узком экране кнопки в столбик: в два столбца «Отправить в WhatsApp»
+   разваливается на три строки. */
+@media (max-width:520px){
+  .rw-btns{flex-direction:column}
+  .rw-btns button{width:100%}
+}
+.cta-link{
+  flex:1 1 0;display:inline-flex;align-items:center;justify-content:center;
+  padding:12px 8px;border-radius:2px;font-size:13.5px;line-height:1.2;
+  text-align:center;text-decoration:none;
+  background:none;color:var(--navy);border:1px solid var(--hair);
+  transition:all var(--t-fast) var(--ease);
+}
+.cta-link:hover{background:var(--tint);border-color:var(--navy)}
+.g-card button.ghost{background:none;color:var(--navy);border:1px solid var(--hair)}
+.g-card button.ghost:hover{background:var(--tint);border-color:var(--navy)}
+.wide-btn{width:100%;margin-top:4px}
+.rw-note{margin:0 0 12px!important;font-size:12.5px!important;color:var(--teal)!important;min-height:1px}
+.rw-terms{
+  margin:0 0 16px!important;font-size:10.5px!important;line-height:1.45!important;
+  color:var(--mute)!important;text-align:left;
+}
+.dock-sep{flex:0 0 auto;width:1px;height:22px;background:rgba(255,255,255,.18);margin:0 4px}
+.chip.cat{display:inline-flex;align-items:center;gap:7px}
+
+/* ---------- intro ---------- */
+.intro{
+  position:fixed;inset:0;z-index:80;display:grid;place-items:center;
+  background:rgba(10,12,16,.82);backdrop-filter:blur(8px);padding:24px;
+  transition:opacity var(--t-std) var(--ease);
+}
+.intro.off{opacity:0;pointer-events:none}
+.intro .card{background:#fff;max-width:460px;padding:clamp(28px,5vw,40px);text-align:center}
+.intro h1{margin:0 0 12px;font:400 clamp(26px,4vw,34px)/1.15 var(--serif)}
+.intro p{margin:0 0 24px;color:var(--ink-2);line-height:1.6}
+.intro button{
+  padding:14px 28px;background:var(--navy);color:#fff;border-radius:2px;font-size:15px;
+  transition:background var(--t-fast) var(--ease);
+}
+.intro button:hover{background:var(--navy-d)}
+.intro small{display:block;margin-top:18px;font-size:13px;color:var(--mute)}
+
+/* ---------- editor ---------- */
+.edit-hint{
+  position:fixed;left:50%;bottom:96px;translate:-50% 0;z-index:70;
+  padding:8px 14px;background:var(--navy);color:#fff;font-size:13px;border-radius:2px;
+  display:none;
+}
+body.editing .edit-hint{display:block}
+body.editing .frame{cursor:crosshair}
+.edit-out{
+  position:fixed;left:16px;bottom:96px;z-index:70;display:none;
+  width:min(360px,calc(100vw - 32px));max-height:40vh;overflow:auto;
+  background:#fff;padding:12px;font:400 12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;
+  box-shadow:0 10px 40px rgba(10,12,16,.4);white-space:pre-wrap;word-break:break-all;
+}
+body.editing .edit-out{display:block}
+
+/* ---------- mobile ---------- */
+@media (max-width:760px){
+  .bar{height:56px;gap:10px}
+  .bar .where,.bar .sep{display:none}
+  .brand b{font-size:15px}
+  /* max-width:100% отсюда убран намеренно. Пока кадр был в потоке грида,
+     правило ничего не делало; после перевода кадра в absolute оно стало
+     обрезать его до ширины экрана — панорама переставала работать, а по
+     краю открывался пустой фон. Размер кадра считает только fit(). */
+  .frame img.scene{object-fit:cover}
+  .caption{max-width:none;right:clamp(14px,3vw,28px);z-index:20}
+  .caption p{display:none}
+  .go .disc{width:48px;height:48px}
+  .game-stage{padding:0}
+  .arena{max-width:100%;max-height:100%;border:0;box-shadow:none}
+  .panel{width:100%;top:auto;height:86svh;border-radius:2px 2px 0 0;
+         transform:translateY(100%);box-shadow:0 -20px 60px rgba(10,12,16,.35)}
+  .panel.on{transform:none}
+  .kitgrid{grid-template-columns:1fr 1fr}
+  /* Документы в один столбец: на узком экране два превью мельчают до
+     нечитаемых марок, а по ним человек и выбирает, что открыть. */
+  .docgal{grid-template-columns:1fr}
+  .docgal img{aspect-ratio:auto;max-height:52vw}
+}
+/* Приз на узком экране — в столбик. Две колонки здесь ужимаются так, что
+   «Имплантация» не влезает и обрезается многоточием; лучше отдать каждой
+   услуге всю ширину, чем показывать огрызок слова. */
+@media (max-width:520px){
+  .g-prize-row{flex-direction:column;gap:8px;margin-bottom:18px}
+  .g-prize-row .or{align-self:center}
+  .g-prize-row .opt{display:flex;align-items:baseline;gap:10px}
+  .g-prize-row .opt b{margin-bottom:0}
+}
+/* ---------- шапка игры: ступенчатое сворачивание ----------
+   Блок стоит В КОНЦЕ намеренно: выше по файлу компоненты переобъявляют
+   display, и медиазапросы, поставленные раньше, ими перебивались.
+   На каждом шаге уходит наименее важное; счёт, жизни, пауза и выход
+   остаются на любой ширине. */
+@media (max-width:1100px){ .g-title{display:none} }
+@media (max-width:900px){
+}
+@media (max-width:820px){ .g-stat.best{display:none} }
+@media (max-width:680px){ .g-charge{display:none} }
+@media (max-width:480px){
+  .game-head{gap:8px;padding-left:10px;padding-right:10px}
+  .gh-left,.gh-right{gap:9px}
+  .g-exit .lbl{display:none}
+  .g-exit{padding:8px 10px}
+  .g-stat i{display:none}          /* остаются только цифры */
+  .g-lives{font-size:14px;gap:2px}
+}
+@media (max-width:360px){ .g-combo{display:none} }
+
+/* ---------- палец на телефоне ----------
+   Всё, во что целятся пальцем, доводим до 44 px. Меньше — промахи,
+   особенно у выхода из игры и у крестика панели: их жмут в спешке. */
+@media (max-width:760px){
+  .spot{width:48px;height:48px}
+  .close{width:44px;height:44px}
+  .filters button{padding:10px 14px}
+  .pback{padding:11px 14px}
+  .shot-x,.shot-nav{width:44px;height:44px}
+  .chip{padding:12px 14px}
+  .doclink{padding-top:8px;padding-bottom:8px}
+}
+@media (max-width:480px){
+  .g-exit{padding:12px}
+  .close{width:44px;height:44px}
+}
+
+/* ---------- hover только там, где есть курсор ----------
+   На тач-экране :hover залипает после тапа: подсказка предмета, плашка
+   акции и увеличенная стрелка остаются висеть до следующего касания. */
+@media (hover:none){
+  .spot:hover .tip{opacity:0}
+  .spot.area:hover .promo{opacity:0;transform:translateY(6px) scale(.96)}
+  .go:hover .disc{transform:none;background:rgba(255,255,255,.74)}
+  /* Подпись стрелки открывалась по наведению, а на телефоне наведения нет:
+     человек видел только кружок и не знал, куда он ведёт. Показываем всегда. */
+  .go .cap{opacity:1;transform:none}
+}
+
+@media (prefers-reduced-motion:reduce){
+  /* Псевдоэлементы * не матчит — пульсация точек продолжалась. И одной
+     нулевой длительности мало: бесконечная итерация перезапускает
+     анимацию десятки тысяч раз в секунду, грея процессор. */
+  *,*::before,*::after{
+    animation-duration:.01ms!important;
+    animation-iteration-count:1!important;
+    transition-duration:.01ms!important;
+  }
+}
+</style>
+</head>
+<body>
+
+<div class="tour" id="tour">
+  <header class="bar">
+    <a class="brand" href="https://ermolaevegorit-create.github.io/akademiya-ulybki/index.html" target="_blank" rel="noopener" aria-label="Академия улыбки">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M12 21c-1.6 0-2.2-1.4-2.6-3.2C9 15.9 8.6 15 7.6 15c-1 0-1.5.9-1.9 2.8C5.3 19.6 4.7 21 3.1 21" stroke="#fff" stroke-width="1.4" stroke-linecap="round" opacity=".0"/>
+        <path d="M12 6.5c1.8-2 4-2.6 5.7-1.7 2 1 2.7 3.5 2 6.4-.7 3-2.3 5.6-3.6 7-.9 1-2 .7-2.4-.7l-.9-3c-.2-.7-1.3-.7-1.6 0l-.9 3c-.4 1.4-1.5 1.7-2.4.7-1.3-1.4-2.9-4-3.6-7-.7-2.9 0-5.4 2-6.4C8 3.9 10.2 4.5 12 6.5Z" fill="#fff"/>
+      </svg>
+      <b>Академия улыбки</b>
+    </a>
+    <div class="sep"></div>
+    <div class="where" id="where">Экскурсия по клинике</div>
+    <div class="grow"></div>
+    <a class="exit" href="https://ermolaevegorit-create.github.io/akademiya-ulybki/index.html" target="_blank" rel="noopener">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M19 12H5M5 12l6-6M5 12l6 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      На сайт
+    </a>
+  </header>
+
+  <main class="stage" id="stage">
+    <div class="frame" id="frame">
+      <img class="scene" id="sceneImg" alt="">
+    </div>
+    <!-- Подпись вынесена из .frame: внутри кадра она уезжала за край экрана
+         вместе с панорамой, и заголовок с кнопкой пропадали от одного свайпа. -->
+    <div class="caption">
+      <h1 id="capTitle"></h1>
+      <p id="capText"></p>
+      <button class="kit" id="kitBtn" hidden>Оборудование кабинета <b id="kitCount"></b></button>
+    </div>
+    <div class="pan-hint" id="panHint" style="opacity:0">Потяните кадр, чтобы осмотреться</div>
+    <div class="scene-fade"></div>
+  </main>
+
+  <nav class="dock" id="dock" aria-label="Помещения клиники"></nav>
+</div>
+
+<div class="scrim" id="scrim"></div>
+
+<aside class="panel" id="panel" role="dialog" aria-modal="true" aria-labelledby="pTitle">
+  <div class="panel-head">
+    <span id="pKicker">Оборудование</span>
+    <button class="close" id="pClose" aria-label="Закрыть">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+  <div class="panel-body" id="pBody"></div>
+</aside>
+
+<div class="intro" id="intro">
+  <div class="card">
+    <h1>Пройдитесь по клинике</h1>
+    <p>Стрелки ведут из комнаты в комнату. Светящиеся точки — предметы, о которых можно почитать: кресло, автоклав, сканер. Загляните куда угодно ещё до записи.</p>
+    <button id="startBtn">Начать экскурсию</button>
+    <small>7 минут · 6 помещений · без регистрации</small>
+  </div>
+</div>
+
+<div class="game" id="game">
+  <div class="game-head">
+    <div class="gh-left">
+      <span class="g-title">Бор против кариеса</span>
+    </div>
+    <div class="gh-right">
+      <span class="g-stat"><i>Счёт</i> <b id="gScore">0</b></span>
+      <span class="g-combo" id="gCombo"></span>
+      <span class="g-stat best"><i>Рекорд</i> <b id="gBest">0</b></span>
+      <span class="g-charge" id="gCharge">
+        <i id="gChargeIcon"></i>
+        <span class="g-bar"><b id="gChargeFill"></b></span>
+      </span>
+      <span class="g-armor" id="gArmor" hidden title="Броня: держит один удар">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 3l7 3v5c0 4.4-2.9 8.3-7 9.5-4.1-1.2-7-5.1-7-9.5V6l7-3Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+      </span>
+      <span class="g-lives" id="gLives">♥♥♥</span>
+      <button class="close" id="gPauseBtn" aria-label="Пауза">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="7" y="5" width="3.6" height="14" rx="1"/><rect x="13.4" y="5" width="3.6" height="14" rx="1"/></svg>
+      </button>
+      <button class="g-exit" id="gClose" aria-label="Выйти из игры (Esc)">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        <span class="lbl">Выход</span>
+      </button>
+    </div>
+  </div>
+  <div class="game-stage">
+    <div class="arena"><canvas id="gameCanvas"></canvas></div>
+    <!-- Стартовый экран: только название, приз и кнопка. Правила человек
+         считывает по ходу — очаг с двумя точками над ним объясняет себя
+         сам быстрее, чем абзац про то, что он с двух ударов. -->
+    <div class="g-card" id="gStart">
+      <h3>Бор против кариеса</h3>
+      <p class="g-prize">Победите супер-кариес — выпадет один из подарочных сертификатов клиники</p>
+      <div class="g-prize-row" id="gPrize"></div>
+      <button id="gPlay">Играть</button>
+      <small class="g-ctrl">Ведите бор мышью или пальцем</small>
+    </div>
+    <div class="g-card wide" id="gReward" hidden>
+      <span class="rw-kicker">Супер-кариес повержен · +<b id="rwPts">0</b></span>
+      <h3>Вы спасли зуб</h3>
+      <p class="rw-won" id="rwWon"></p>
+      <img id="rwImg" alt="Подарочный сертификат клиники">
+      <p class="rw-code">Код <b id="rwCode"></b> · до <b id="rwExp"></b></p>
+      <div class="rw-btns">
+        <button id="rwSend">Отправить в WhatsApp</button>
+        <button class="ghost" id="rwSave">Скачать PNG</button>
+      </div>
+      <p class="rw-note" id="rwNote"></p>
+      <!-- Условия берём из CERT.terms, чтобы они не разъезжались с теми,
+           что напечатаны на самом сертификате. -->
+      <p class="rw-terms" id="rwTerms"></p>
+      <button class="ghost wide-btn" id="rwPlay">Продолжить игру</button>
+      <!-- Тихий выход обратно в экскурсию: после победы человек чаще хочет
+           дочитать про клинику, чем играть дальше, но навязывать это
+           крупной кнопкой поверх сертификата не стоит. -->
+      <button class="rw-back" id="rwBack">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5V20a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1v-8.5Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+        Вернуться в клинику
+      </button>
+    </div>
+    <div class="g-card" id="gPause" hidden>
+      <h3>Пауза</h3>
+      <p>Пауза. Нажмите «Продолжить» или пробел.</p>
+      <button id="gResume">Продолжить</button>
+    </div>
+    <div class="g-card" id="gOver" hidden>
+      <h3>Зуб не устоял</h3>
+      <p>Зуб не спасли. Счёт: <b id="gFinal">0</b></p>
+      <div class="rw-btns">
+        <button id="gAgain">Ещё раз</button>
+        <a class="cta-link" href="https://ermolaevegorit-create.github.io/akademiya-ulybki/index.html" target="_blank" rel="noopener">В стоматологию</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Просмотр скана документа поверх страницы -->
+<div class="docview" id="shot" role="dialog" aria-modal="true" aria-label="Документ">
+  <div class="shot-bar">
+    <div class="shot-cap"><b id="shotTitle"></b><span id="shotMeta"></span></div>
+    <span class="shot-num" id="shotNum"></span>
+    <button class="shot-x" id="shotClose" aria-label="Закрыть (Esc)">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+  <button class="shot-nav prev" id="shotPrev" aria-label="Предыдущий документ">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+  <img id="shotImg" alt="">
+  <button class="shot-nav next" id="shotNext" aria-label="Следующий документ">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M9 5l7 7-7 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+</div>
+
+<div class="edit-hint">Режим разметки: кликните по сцене — координаты скопируются. E — выйти.</div>
+<div class="edit-out" id="editOut"></div>
+
+<script>
+/* =====================================================================
+   ДАННЫЕ ЭКСКУРСИИ
+   x / y — проценты от кадра (0–100), считая от левого верхнего угла.
+   Чтобы поправить точку: откройте страницу, нажмите E, кликните по
+   нужному месту — координаты появятся внизу слева и лягут в буфер.
+   ===================================================================== */
+/* Отметка сборки: видно в консоли браузера (F12) и в подсказке логотипа.
+   Нужна, чтобы отличать свежую версию от закэшированной. */
+const BUILD = '27.09.2026 03:40';
+
+/* Адрес рабочего сайта. Объявлен до ITEMS и DOCS: обе структуры собирают
+   из него ссылки прямо при инициализации. */
+const SITE = 'https://ermolaevegorit-create.github.io/akademiya-ulybki/';
+
+const ITEMS = {
+  /* --- места, а не приборы --- */
+  'p-desk':{t:'Стойка администратора',m:'Документы, режим работы, памятки',render:'docs'},
+  'p-tv':{t:'Экран в холле',m:'Пока ждёте приёма',render:'game'},
+  'p-wait':{t:'Зона ожидания',m:'Ресепшн',
+    what:'Мягкие кресла и столик рядом со стойкой. Приём идёт по записи, поэтому долго ждать обычно не приходится.',
+    why:'Мы держим паузу между пациентами: кабинет успевают проветрить и обработать без спешки.',
+    cta:'Записаться на приём'},
+  'p-light':{t:'Светильник над креслом',m:'Кабинет',
+    what:'Бестеневой светильник с холодным светом. Он даёт равномерную засветку рабочего поля без резких теней.',
+    why:'Чем лучше врач видит зуб, тем аккуратнее граница пломбы и тем дольше она служит.'},
+  /* Рабочее место врача — единственная точка, где уместно рассказать о самом
+     враче. Факты и ссылка сверены с разделом «Кто ведёт приём» на сайте:
+     если там что-то поменяется, править нужно и здесь. */
+  'p-doctor':{t:'Рабочее место врача',m:'Белоусова Александра Сергеевна',
+    what:'Стол с монитором: сюда выводят снимки, модели со сканера и план лечения. За ним работает Александра Сергеевна Белоусова — основатель клиники и её главный врач.',
+    why:'Диагностику, лечение, удаление, имплантацию и протезирование вы проходите у одного специалиста: врач ведёт вас от диагностики до протезирования сам и не передаёт по кабинетам. И вы видите на экране то же, что и он, — решение принимается вместе, а не на слово.',
+    factsTitle:'Квалификация',
+    facts:[
+      ['Специализация','Стоматолог-терапевт, стоматолог-хирург, имплантолог'],
+      ['Образование','Новосибирский государственный медицинский университет, «Стоматология», 2015'],
+      ['В практике','С 2016 года'],
+      ['Направления','Терапия, эндодонтия, пародонтология, хирургия, имплантация, ортопедия'],
+      ['Аккредитация','Свидетельство об аккредитации специалиста']
+    ],
+    link:{href:SITE+'index.html#vrach', text:'Профиль врача на сайте клиники'}},
+  'p-sink':{t:'Зона обработки инструментов',m:'Стерилизационная',
+    what:'Раковина и промаркированные ёмкости для дезинфекции и предстерилизационной очистки. С этого этапа начинается путь каждого инструмента после приёма.',
+    why:'Стерилизация начинается не с автоклава, а здесь: плохо отмытый инструмент невозможно простерилизовать.'},
+  'p-restroom':{t:'Санузел для пациентов',m:'Клиника',
+    what:'Отдельный санузел с сенсорным дозатором мыла и бумажными полотенцами.'},
+
+  /* --- оборудование --- */
+  '01-dental-unit':{t:'Стоматологическая установка',m:'Модель уточняется',img:'01-dental-unit',
+    what:'Основное рабочее место: кресло с регулировкой положения, светильник, подача инструментов, аспирация и плевательница в одной эргономичной зоне.',
+    why:'Кресло подстраивается под вас, а не наоборот. Правильное положение тела — это меньше усталости за долгий приём и лучше доступ для врача.',
+    memoTitle:'Памятка перед приёмом',
+    memo:[
+      'Поешьте за 1–2 часа до приёма: после анестезии есть нельзя ещё около двух часов.',
+      'Принимаете лекарства постоянно — скажите об этом до начала лечения, список важен.',
+      'Беременность, аллергия, хронические болезни — предупредите на первом приёме.',
+      'Вы вправе получить копию медицинской карты и план лечения с ценами до начала работ.'],
+    memoFlag:'Памятка носит общий характер и не заменяет консультацию врача.',
+    cta:'Записаться на приём'},
+  '02-woson-lub909':{t:'Аппарат ухода за наконечниками',m:'Woson LUB909',img:'02-woson-lub909',
+    what:'Очищает и смазывает внутренние каналы наконечников — тех самых «бормашин» — перед стерилизацией. Обслуживает до трёх инструментов сразу.',
+    why:'Наконечник соприкасается с полостью рта, и внутри у него каналы. Машинная обработка промывает их одинаково тщательно каждый раз.'},
+  '03-shining3d-scanner':{t:'Внутриротовой 3D-сканер',m:'SHINING 3D Aoralscan',img:'03-shining3d-scanner',
+    what:'Снимает цифровой трёхмерный слепок зубов и дёсен. Модель используют для планирования виниров, коронок, вкладок и капп.',
+    why:'Не нужна ложка с массой во рту — ни рвотного рефлекса, ни ожидания застывания. И слепок можно переснять за минуту, если что-то не понравилось.'},
+  '04-micronx-impla-nx':{t:'Физиодиспенсер для имплантации',m:'MicroNX Impla-NX LED',img:'04-micronx-impla-nx',
+    what:'Задаёт точную скорость и крутящий момент хирургического наконечника, одновременно подавая охлаждающий раствор.',
+    why:'Кость чувствительна к перегреву. Контроль оборотов и охлаждение — это про то, как имплант приживается.'},
+  '05-portable-xray':{t:'Портативный рентген-аппарат',m:'Модель уточняется',img:'05-portable-xray',
+    what:'Прицельный снимок делают прямо в кабинете, не пересаживая вас в другое помещение.',
+    why:'Врач видит снимок сразу — не нужно переносить лечение на другой день, чтобы «сходить на рентген».'},
+  '06-spds-uv-chamber':{t:'Камера хранения стерильных инструментов',m:'СПДС',img:'06-spds-uv-chamber',
+    what:'Закрытая камера с ультрафиолетовым излучателем, где инструменты ждут приёма уже после стерилизации.',
+    why:'Стерильный инструмент нельзя просто положить в ящик. Камера сохраняет его состояние до момента, когда его достанут при вас.'},
+  '07-durr-vector-paro':{t:'Аппарат для лечения дёсен',m:'Dürr Dental Vector Paro',img:'07-durr-vector-paro',
+    what:'Ультразвуковая система для пародонтологического лечения: убирает отложения и обрабатывает поверхность корня в глубоких карманах.',
+    why:'Работает мягче обычного скалера — движение инструмента направлено вдоль зуба, а не поперёк. Многие пациенты переносят такую обработку легче.'},
+  '08-woson-autoclave-b':{t:'Автоклав класса B',m:'Woson',img:'08-woson-autoclave-b',
+    what:'Стерилизует инструменты насыщенным паром под давлением. Класс B — цикл с вакуумом: так стерилизуют в том числе полые и пористые инструменты.',
+    why:'Вакуум перед стерилизацией выгоняет воздух из полых инструментов, и пар достаёт туда, куда иначе не дошёл бы. Тот же стандарт, что в операционной.'},
+  '09-ultrasonic-cleaner':{t:'Ультразвуковая мойка',m:'2000 мл, с подогревом',img:'09-ultrasonic-cleaner',
+    what:'Ультразвук создаёт в растворе микропузырьки, которые снимают загрязнения из насечек, замков и труднодоступных мест инструмента.',
+    why:'Руками и щёткой в рифлёную рабочую часть не добраться. Это тот этап, без которого автоклав бесполезен.'},
+  '10-woson-sealer':{t:'Упаковочный аппарат',m:'Woson',img:'10-woson-sealer',
+    what:'Запаивает крафт-пакеты и рулоны, в которых инструменты идут в автоклав и потом хранятся.',
+    why:'Пакет вскрывают при вас, перед приёмом. Ровный герметичный шов означает, что упаковка не вскрывалась до приёма.'},
+  '11-ferroplast-uv-chamber':{t:'Бактерицидная камера',m:'Ferroplast КБ-02 «Ультра-Лайт»',img:'11-ferroplast-uv-chamber',
+    what:'Ещё одна камера хранения — для инструментов, которые используют в течение смены.',
+    why:'Хранение разнесено по зонам: обработанное не пересекается с тем, что ещё ждёт обработки.'},
+  '12-curing-light-silver':{t:'Фотополимерная лампа',m:'Модель уточняется',img:'12-curing-light-silver',
+    what:'Синий свет заданной длины волны отверждает композит — материал, из которого делают пломбы и реставрации.',
+    why:'Композит твердеет послойно и только под лампой. Именно поэтому врач ставит пломбу не одним куском — так она садится плотнее и меньше даёт усадку.'},
+  '13-curing-light-mercury':{t:'Фотополимерная лампа',m:'Mercury JR-CL37',img:'13-curing-light-mercury',
+    what:'Ещё одна фотополимерная лампа, с защитным оранжевым экраном.',
+    why:'Экран отсекает яркий синий свет от глаз. Мелочь, но именно из таких мелочей складывается спокойный приём.'},
+  '14-loupes-led':{t:'Бинокулярные лупы с подсветкой',m:'Модель уточняется',img:'14-loupes-led',
+    what:'Оптика увеличивает рабочее поле, а LED-осветитель светит точно по оси взгляда врача.',
+    why:'Врач видит трещину или край кариеса, который не виден невооружённым глазом. Лечат ровно столько, сколько нужно.'},
+  '15-air-polisher':{t:'Аппарат Air Flow',m:'NSK Prophy-Mate neo',img:'15-air-polisher',
+    what:'Поток воздуха, воды и мелкодисперсного порошка снимает мягкий налёт и пигмент от кофе, чая и сигарет.',
+    why:'Не скребёт эмаль, а обрабатывает её струёй. После процедуры зубам возвращается их собственный оттенок — без отбеливания.'},
+  '18-composite-warmer':{t:'Подогреватель материала',m:'Модель уточняется',img:'18-composite-warmer',
+    what:'Восемь гнёзд с регулировкой температуры и времени: в них держат шприцы с композитом.',
+    why:'Подогретый композит пластичнее — он лучше адаптируется к стенкам полости, и между пломбой и зубом остаётся меньше зазора.'}
+};
+
+const SCENES = {
+  reception:{
+    title:'Ресепшн и зона ожидания', chip:'Ресепшн', ar:[1536,1024],
+    img:'assets/tour/scenes/reception.jpg',
+    spots:[
+      {id:'p-desk', x:41.1, y:60.6},
+      {id:'p-tv', noTip:true,
+       /* Углы самого экрана, снятые по фотографии (внутренний край рамки).
+          Экран висит с наклоном, поэтому правая сторона ниже левой — прямой
+          прямоугольник здесь выглядел бы криво. */
+       /* promo:true — показать плашку акции; текст берётся из CERT.badge
+          при отрисовке, потому что CERT объявлен ниже по файлу. */
+       area:[[25.45,18.42],[37.52,23.00],[37.40,34.55],[25.42,32.30]],
+       promo:true},
+      {id:'p-wait', x:81.8, y:78.2}
+    ],
+    links:[
+      {to:'corridor', x:60, y:43.7, label:'В коридор'}
+    ]
+  },
+  corridor:{
+    title:'Коридор', chip:'Коридор', ar:[1086,1448],
+    img:'assets/tour/scenes/corridor.jpg',
+    spots:[],
+    links:[
+      {to:'restroom',        x:25.3, y:73.7, label:'В санузел', dir:'left'},
+      {to:'treatment-blue',  x:61,   y:46,   label:'В кабинет №1', dir:'right'},
+      /* Разведено с «Кабинетом №1»: на телефоне кружки перекрывались, и
+         в зоне пересечения тап всегда открывал Кабинет №2. */
+      {to:'treatment-black', x:44.8, y:40.6, label:'В кабинет №2'},
+      {to:'reception',       x:75.1, y:75,   label:'На ресепшн', dir:'right'}
+    ]
+  },
+  'treatment-blue':{
+    title:'Кабинет №1', chip:'Кабинет №1', ar:[1536,1024],
+    img:'assets/tour/scenes/treatment-blue.jpg',
+    text:'Терапия, реставрация, цифровые слепки.',
+    kit:['01-dental-unit','03-shining3d-scanner','06-spds-uv-chamber','02-woson-lub909','05-portable-xray','13-curing-light-mercury','15-air-polisher','14-loupes-led'],
+    spots:[
+      {id:'01-dental-unit', x:42, y:61},
+      {id:'03-shining3d-scanner', x:14.5, y:63},
+      {id:'06-spds-uv-chamber', x:20.2, y:47.1},
+      {id:'02-woson-lub909', x:75.7, y:46.7},
+      {id:'p-light', x:37, y:36},
+      {id:'p-doctor', x:80.4, y:59.8}
+    ],
+    links:[{to:'corridor', x:56.8, y:89.6, label:'В коридор', back:true}]
+  },
+  'treatment-black':{
+    title:'Кабинет №2', chip:'Кабинет №2', ar:[1536,1024],
+    img:'assets/tour/scenes/treatment-black.jpg',
+    text:'Хирургия и имплантация.',
+    kit:['01-dental-unit','04-micronx-impla-nx','07-durr-vector-paro','12-curing-light-silver','18-composite-warmer'],
+    spots:[
+      {id:'01-dental-unit', x:50.3, y:54.6},
+      {id:'04-micronx-impla-nx', x:31, y:51},
+      {id:'08-woson-autoclave-b', x:85.3, y:44.7},
+      {id:'p-doctor', x:86.9, y:58.1},
+      {id:'p-light', x:53.6, y:35.3}
+    ],
+    links:[
+      {to:'sterilization', x:5.2, y:52, label:'Стерилизационная', dir:'left'},
+      {to:'corridor', x:56.3, y:92.8, label:'В коридор', back:true}
+    ]
+  },
+  sterilization:{
+    title:'Стерилизационная', chip:'Стерилизационная', ar:[1920,1280],
+    img:'assets/tour/scenes/sterilization.jpg',
+    text:'Дезинфекция, упаковка и стерилизация инструментов.',
+    kit:['09-ultrasonic-cleaner','10-woson-sealer','08-woson-autoclave-b','11-ferroplast-uv-chamber'],
+    spots:[
+      {id:'p-sink', x:31.1, y:55.5},
+      {id:'09-ultrasonic-cleaner', x:52, y:46},
+      {id:'10-woson-sealer', x:60.4, y:44.7},
+      {id:'08-woson-autoclave-b', x:72, y:40}
+    ],
+    links:[
+      {to:'treatment-black', x:88, y:78, label:'В кабинет №2', back:true},
+      {to:'corridor',        x:15, y:80, label:'В коридор',   back:true}
+    ]
+  },
+  restroom:{
+    title:'Санузел', chip:'Санузел', ar:[1448,1086],
+    img:'assets/tour/scenes/restroom.jpg',
+    spots:[{id:'p-restroom', x:52, y:62}],
+    links:[{to:'corridor', x:80.6, y:88, label:'В коридор', back:true}]
+  }
+};
+
+/* ---------------------------------------------------------------------
+   ДОКУМЕНТЫ НА СТОЙКЕ
+   Реквизиты и лицензия взяты с рабочего сайта клиники.
+   ЧАСЫ РАБОТЫ и ПАМЯТКИ — черновик, требует проверки врачом.
+   --------------------------------------------------------------------- */
+const DOCS_DIR = 'assets/tour/docs/';
+/* Единая точка сборки пути к скану — как eqSrc у оборудования: сборщик
+   артефакта подменяет только тело этой функции. */
+function docSrc(n){ return DOCS_DIR + n + '.webp'; }
+/* ---------------------------------------------------------------------
+   КАНАЛЫ ЗАПИСИ
+   Кнопка рисуется только если заполнен url. Пустой url — кнопки нет,
+   чтобы на странице не висела мёртвая ссылка.
+   WhatsApp собирается из номера и работает как есть.
+   Telegram и MAX по номеру телефона не открываются, им нужна своя ссылка:
+     Telegram — https://t.me/<имя_профиля> (Настройки → Имя пользователя);
+     MAX      — https://max.ru/u/<код> (профиль → «Поделиться» → «Скопировать
+                ссылку»; у MAX нет коротких имён, код выдаётся приложением).
+   --------------------------------------------------------------------- */
+const PHONE = '79897512851';
+const HELLO = encodeURIComponent('Здравствуйте! Хочу записаться на приём в «Академию улыбки».');
+const CHANNELS = [
+  {id:'wa', name:'WhatsApp', col:'#25D366',
+   url:'https://wa.me/'+PHONE+'?text='+HELLO},
+  {id:'max', name:'MAX', col:'#7B4DFF',
+   url:''},                       /* ← ссылка или имя профиля в MAX */
+  {id:'tg', name:'Telegram', col:'#229ED9',
+   url:''}                        /* ← https://t.me/<имя_профиля> */
+];
+const WA = CHANNELS[0].url;
+
+/* Данные взяты со страницы «Сведения о клинике» (info.html).
+   Раскрывающиеся вкладки — это <details>, без скриптов. */
+const DOCS = [
+  {k:'Реквизиты организации', open:true, rows:[
+      ['Наименование','ООО «Академия улыбки»'],
+      ['ОГРН','1262300000038'],
+      ['ИНН / КПП','2366057010 / 236601001'],
+      ['Юридический адрес','354008, Краснодарский край, г. Сочи, ул. Виноградная, д. 22/1Б'],
+      ['Адрес приёма','354008, Сочи, Центральный район, ул. Виноградная, 55/1, пом. 22, 2-й этаж'],
+      ['Телефон','+7 (989) 751-28-51'],
+      ['Главный врач','Белоусова Александра Сергеевна']]},
+
+  {k:'Лицензия', rows:[
+      ['Регистрационный номер','Л041-01126-23/05841444'],
+      ['Дата предоставления','03.08.2026'],
+      ['Лицензирующий орган','Министерство здравоохранения Краснодарского края, приказ № 3046'],
+      ['Срок действия','Бессрочно'],
+      ['Работы и услуги','Сестринское дело; ортодонтия; стоматология общей практики, ортопедическая, терапевтическая, хирургическая']],
+   link:{href:SITE+'info.html', text:'Сведения о клинике и лицензия'}},
+
+  {k:'Режим работы и запись', rows:[
+      ['Часы работы','9:00–17:00'],
+      ['Приём','По предварительной записи'],
+      ['Запись','По телефону или в WhatsApp'],
+      ['Снимки и заключения','Выдаём в день приёма']],
+   note:'Если опаздываете — предупредите, постараемся сдвинуть приём.'},
+
+  {k:'Врач', rows:[
+      ['ФИО','Белоусова Александра Сергеевна'],
+      ['Должность','Главный врач'],
+      ['Специализация','Стоматолог-терапевт, стоматолог-хирург, имплантолог'],
+      ['Образование','Новосибирский государственный медицинский университет, «Стоматология», 2015'],
+      ['Стаж','С 2015 года']],
+   /* Дипломы и сертификаты. Чтобы добавить документ: положить файл в
+      assets/tour/docs/ и дописать сюда строку. Пустой список не рисуется.
+      Подписи сверены по самим сканам, а не по памяти.
+      ВАЖНО: документы 2015–2016 годов выданы на девичью фамилию Бондарева.
+      Подпись об этом стоит ниже, иначе разные фамилии на сканах читаются
+      как чужие документы. */
+   gallery:[
+     {src:'01-internatura',            t:'Диплом об интернатуре по стоматологии',
+      m:'НГМУ, 2016 · дубликат'},
+     {src:'02-sertifikat-stomatologiya', t:'Сертификат специалиста «Стоматология»',
+      m:'НГМУ, 2016'},
+     {src:'03-diplom-perepodgotovka',  t:'Диплом о профессиональной переподготовке',
+      m:'Организация здравоохранения и общественное здоровье, 2019'},
+     {src:'04-sertifikat-ozioz',       t:'Сертификат специалиста',
+      m:'Организация здравоохранения и общественное здоровье, 2019'},
+     {src:'05-udostoverenie-2025',     t:'Удостоверение о повышении квалификации',
+      m:'144 часа, «Центр-С», Ставрополь, 2025'}
+   ],
+   galleryNote:'Документы 2015–2016 годов выданы на девичью фамилию — Бондарева Александра Сергеевна.'},
+
+  {k:'Права пациента', list:[
+      'Выбор врача и уважительное отношение.',
+      'Информация о состоянии здоровья и о ходе лечения.',
+      'Информированное добровольное согласие и право на отказ от вмешательства.',
+      'Копии медицинских документов и выписки — без дополнительной платы.'],
+   note:'Полный перечень — в Федеральном законе № 323-ФЗ от 21.11.2011.'},
+
+  {k:'Обращения и контроль', list:[
+      'Министерство здравоохранения Краснодарского края',
+      'Территориальный орган Росздравнадзора',
+      'Управление Роспотребнадзора по Краснодарскому краю'],
+   note:'Адреса и телефоны — на странице «Сведения о клинике».'},
+
+  {k:'Документы', links:[
+      {href:SITE+'info.html',    text:'Сведения о клинике и лицензия'},
+      {href:SITE+'privacy.html', text:'Политика обработки персональных данных'}],
+   flag:'Образцы договоров, выписка из реестра лицензий с QR-кодом и правила поведения пациента пока не приложены — как появятся файлы, добавим сюда.'}
+];
+
+const ORDER = ['reception','corridor','treatment-blue','treatment-black','sterilization','restroom'];
+const EQ = 'assets/tour/equipment/';
+/* Единая точка сборки пути к картинке: сборщик артефакта подменяет
+   только тело этой функции, а не хрупкие склейки строк по всему коду. */
+function eqSrc(n){ return EQ + n + '.webp'; }
+
+/* ===================== движок ===================== */
+const $ = s => document.querySelector(s);
+const tour=$('#tour'), frame=$('#frame'), sceneImg=$('#sceneImg'),
+      panel=$('#panel'), scrim=$('#scrim'), pBody=$('#pBody'),
+      pKicker=$('#pKicker'), dock=$('#dock');
+const stage=$('#stage');
+const seen = new Set();
+let listCtx = null;          /* список, из которого открыта карточка */
+let current = null;
+const pan = {x:0,y:0,max:{x:0,y:0}};
+
+/* ---- точная посадка кадра ----
+   Широкий экран: кадр целиком (contain).
+   Узкий: кадр заполняет экран (cover) и его можно тянуть пальцем.
+   В обоих случаях .frame === прямоугольник фото, поэтому % точек точны. */
+function fit(){
+  if(!current) return;
+  const s=SCENES[current], ar=s.ar[0]/s.ar[1];
+  const W=stage.clientWidth, H=stage.clientHeight;
+  const narrow = innerWidth<760;
+  let w,h;
+  if(narrow){ w=Math.max(W,H*ar); h=w/ar; if(h<H){h=H;w=h*ar;} }
+  else      { w=W; h=w/ar; if(h>H){h=H;w=h*ar;} }
+  frame.style.width=w+'px'; frame.style.height=h+'px';
+  pan.max.x=Math.max(0,(w-W)/2); pan.max.y=Math.max(0,(h-H)/2);
+  const can = pan.max.x>6 || pan.max.y>6;
+  stage.classList.toggle('pannable',can);
+  const hint=$('#panHint');
+  hint.style.opacity = can ? '1' : '0';
+  clearTimeout(G.hintT);
+  if(can) G.hintT=setTimeout(()=>{ hint.style.opacity='0'; }, 4000);
+  applyPan();
+}
+function applyPan(){
+  pan.x=Math.max(-pan.max.x,Math.min(pan.max.x,pan.x));
+  pan.y=Math.max(-pan.max.y,Math.min(pan.max.y,pan.y));
+  frame.style.transform='translate('+pan.x+'px,'+pan.y+'px)';
+}
+addEventListener('resize',fit);
+
+/* перетаскивание сцены */
+let drag=null;
+stage.addEventListener('pointerdown',e=>{
+  if(pan.max.x<6&&pan.max.y<6) return;
+  if(e.target.closest('.spot,.go,.kit')) return;
+  drag={sx:e.clientX,sy:e.clientY,px:pan.x,py:pan.y,moved:0};
+  stage.setPointerCapture(e.pointerId);
+});
+stage.addEventListener('pointermove',e=>{
+  if(!drag) return;
+  pan.x=drag.px+(e.clientX-drag.sx); pan.y=drag.py+(e.clientY-drag.sy);
+  drag.moved=Math.max(drag.moved,Math.abs(e.clientX-drag.sx)+Math.abs(e.clientY-drag.sy));
+  applyPan();
+  if(drag.moved>10) $('#panHint').style.opacity='0';
+});
+addEventListener('pointerup',()=>{drag=null});
+addEventListener('pointercancel',()=>{drag=null});
+
+const ARROW = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 19V5M12 5l-6 6M12 5l6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+function buildDock(){
+  dock.innerHTML='';
+  ORDER.forEach(key=>{
+    const b=document.createElement('button');
+    b.className='chip'; b.textContent=SCENES[key].chip;
+    b.dataset.k=key;
+    b.onclick=()=>go(key);
+    dock.appendChild(b);
+  });
+  const sep=document.createElement('i'); sep.className='dock-sep'; dock.appendChild(sep);
+  const cat=document.createElement('button');
+  cat.className='chip cat';
+  cat.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">'+
+    '<path d="M4 5h6v6H4zM14 5h6v6h-6zM4 15h6v6H4zM14 15h6v6h-6z" stroke="currentColor" stroke-width="1.5"/></svg>Наше оборудование';
+  cat.onclick=()=>openCatalog('all');
+  dock.appendChild(cat);
+}
+
+function go(key, instant){
+  if(key===current) return;
+  const s=SCENES[key];
+  const paint=()=>{
+    current=key;
+    sceneImg.src=s.img; sceneImg.alt=s.title;
+    pan.x=0; pan.y=0; fit();
+    $('#capTitle').textContent=s.title;
+    $('#capText').textContent=s.text||'';
+    $('#where').textContent=s.title;
+    const kb=$('#kitBtn');
+    if(s.kit&&s.kit.length){kb.hidden=false;$('#kitCount').textContent=s.kit.length;}
+    else kb.hidden=true;
+    frame.querySelectorAll('.spot,.go').forEach(n=>n.remove());
+    (s.spots||[]).forEach(sp=>frame.appendChild(makeSpot(sp)));
+    (s.links||[]).forEach(l=>frame.appendChild(makeLink(l)));
+    dock.querySelectorAll('.chip').forEach(c=>
+      c.setAttribute('aria-current', c.dataset.k===key ? 'true':'false'));
+    try{ history.replaceState(null,'','#'+key); }catch(_){}
+  };
+  if(instant){paint();return;}
+  tour.classList.add('moving');
+  setTimeout(()=>{paint();requestAnimationFrame(()=>tour.classList.remove('moving'));},320);
+}
+
+function makeSpot(sp){
+  const it=ITEMS[sp.id];
+  const b=document.createElement('button');
+  b.className='spot'+(seen.has(sp.id)?' seen':'')+(sp.area?' area':'');
+  b.setAttribute('aria-label', it? it.t : sp.id);
+  if(sp.area){
+    /* Активна не точка, а сам объект. Многоугольник задан в процентах кадра,
+       поэтому перспектива предмета сохраняется при любом размере окна.
+       viewBox берём из пропорций сцены, а не 100×100: иначе неквадратный
+       кадр растянул бы волну и она расходилась бы вширь сильнее, чем вверх. */
+    const ar=SCENES[current].ar, vw=100*ar[0]/ar[1];
+    const pts=sp.area.map(p=>(p[0]*vw/100)+','+p[1]).join(' ');
+    const cx=sp.area.reduce((s,p)=>s+p[0],0)/sp.area.length*vw/100;
+    const cy=sp.area.reduce((s,p)=>s+p[1],0)/sp.area.length;
+    b.style.setProperty('--poly',
+      'polygon('+sp.area.map(p=>p[0]+'% '+p[1]+'%').join(', ')+')');
+    b.style.setProperty('--cx', cx+'px');
+    b.style.setProperty('--cy', cy+'px');
+    /* центр многоугольника в процентах кадра — для плашки акции */
+    b.style.setProperty('--px', (cx*100/vw)+'%');
+    b.style.setProperty('--py', cy+'%');
+    b.innerHTML='<svg class="wave" viewBox="0 0 '+vw+' 100" preserveAspectRatio="none"'+
+        ' aria-hidden="true"><polygon points="'+pts+'"/><polygon points="'+pts+'"/></svg>'+
+      '<span class="lit"></span>'+
+      (sp.promo?'<span class="promo">'+(sp.promo===true?CERT.badge:sp.promo)+'</span>':'')+
+      (sp.noTip?'':'<span class="tip">'+(it?it.t:sp.id)+'</span>');
+    b.onclick=e=>{e.stopPropagation();listCtx=null;openItem(sp.id);};
+    return b;
+  }
+  b.style.left=sp.x+'%'; b.style.top=sp.y+'%';
+  b.innerHTML='<i class="ring"></i><i class="dot"></i>'+
+    (sp.noTip?'':'<span class="tip">'+(it?it.t:sp.id)+'</span>');
+  b.onclick=e=>{e.stopPropagation();listCtx=null;openItem(sp.id);};
+  return b;
+}
+const ROT={up:0, right:90, down:180, left:270};
+function makeLink(l){
+  const b=document.createElement('button');
+  /* кабинеты помечаем цветом и постоянной меткой №1/№2 — двери
+     в коридоре иначе неразличимы */
+  const room = l.to==='treatment-blue' ? 1 : l.to==='treatment-black' ? 2 : 0;
+  b.className='go'+(l.back?' back':'')+(room?' room'+room:'');
+  b.style.setProperty('--rot', (l.dir!=null ? ROT[l.dir] : (l.back?180:0))+'deg');
+  b.style.left=l.x+'%'; b.style.top=l.y+'%';
+  b.setAttribute('aria-label',l.label);
+  b.innerHTML='<span class="disc">'+ARROW+'</span>'+
+    (room?'<span class="tag r'+room+'">№'+room+'</span>':'')+
+    '<span class="cap">'+l.label+'</span>';
+  b.onclick=e=>{e.stopPropagation();go(l.to);};
+  return b;
+}
+
+function openItem(id){
+  const it=ITEMS[id]; if(!it) return;
+  seen.add(id);
+  frame.querySelectorAll('.spot').forEach(s=>{
+    if(s.getAttribute('aria-label')===it.t) s.classList.add('seen');
+  });
+  if(it.render==='docs') return openDocs();
+  if(it.render==='game') return openGame();
+  pKicker.textContent = it.img ? 'Оборудование' : 'Помещение';
+  const back = listCtx
+    ? '<button class="pback" type="button">'+
+      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'+
+      listCtx.label+'</button>'
+    : '';
+  pBody.innerHTML = back +
+    (it.img?'<div class="shot"><img src="'+eqSrc(it.img)+'" alt="'+it.t+'" loading="lazy"></div>':'')+
+    '<h2 id="pTitle">'+it.t+'</h2>'+
+    (it.m?'<p class="model">'+it.m+'</p>':'')+
+    '<h3>Что это</h3><p>'+it.what+'</p>'+
+    (it.why?'<div class="why"><h3>Что это даёт вам</h3><p>'+it.why+'</p></div>':'')+
+    /* Таблица фактов и ссылка — те же стили, что в блоке документов на
+       ресепшене, чтобы карточка врача и реестр выглядели одинаково. */
+    (it.facts?'<h3>'+(it.factsTitle||'Коротко')+'</h3>'+
+              '<dl class="rows">'+it.facts.map(f=>
+                '<dt>'+f[0]+'</dt><dd>'+f[1]+'</dd>').join('')+'</dl>':'')+
+    (it.link?'<a class="doclink" href="'+it.link.href+'" target="_blank" rel="noopener">'+
+             it.link.text+'</a>':'')+
+    (it.memo?'<h3>'+(it.memoTitle||'Памятка')+'</h3>'+
+             '<ul class="memo">'+it.memo.map(t=>'<li>'+t+'</li>').join('')+'</ul>'+
+             (it.memoFlag?'<p class="flag">'+it.memoFlag+'</p>':''):'')+
+    (it.cta?waBtn(it.cta):'');
+  const bk=pBody.querySelector('.pback');
+  if(bk) bk.onclick=()=>listCtx.fn();
+  showPanel();
+}
+
+/* Запись в мессенджер: ряд кнопок по числу заполненных каналов */
+const CH_ICON = {
+  wa:'<path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.4-.7-1.7-.8-.2-.1-.4-.1-.5.1l-.7.9c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.1-.2 0-.4.1-.5l.4-.5c.1-.2.1-.3 0-.5l-.7-1.7c-.2-.4-.4-.4-.5-.4h-.5c-.2 0-.5.1-.7.3-.2.3-.9.9-.9 2.1s.9 2.5 1 2.6c.1.2 1.8 2.8 4.4 3.9 1.7.7 2.3.8 3.1.6.5-.1 1.4-.6 1.6-1.2.2-.6.2-1.1.1-1.2 0-.1-.2-.2-.4-.3Z"/>',
+  tg:'<path d="M21.9 4.3 18.9 19c-.2 1-.8 1.2-1.7.8l-4.6-3.4-2.2 2.1c-.2.2-.5.5-.9.5l.3-4.6 8.4-7.6c.4-.3-.1-.5-.6-.2L7.3 12.1 2.8 10.7c-1-.3-1-1 .2-1.5l18-6.9c.8-.3 1.5.2 1.2 2Z"/>',
+  /* У MAX нет общепринятого векторного знака в открытом доступе,
+     поэтому буквенная марка — честнее, чем перерисованный по памяти логотип. */
+  max:'<path d="M4 19V5h3.1l4.9 8.2L16.9 5H20v14h-2.8v-9.1l-4.2 7h-.1l-4.1-7V19Z"/>'
+};
+const chIcon=(id,s)=>'<svg width="'+s+'" height="'+s+'" viewBox="0 0 24 24" '+
+  'fill="currentColor" aria-hidden="true">'+CH_ICON[id]+'</svg>';
+function waBtn(text){
+  const live = CHANNELS.filter(c=>c.url);
+  if(!live.length) return '';
+  /* Первый заполненный канал — главный, остальные уходят в строку «Ещё».
+     Порядок задаётся массивом CHANNELS, менять ничего больше не нужно. */
+  const [main, ...alt] = live;
+  return '<div class="wabox"><span class="walabel">'+text+'</span>'+
+    '<a class="wa" href="'+main.url+'" target="_blank" rel="noopener">'+
+      chIcon(main.id,18)+'Написать в '+main.name+'</a>'+
+    (alt.length ? '<div class="waalt">Ещё:'+alt.map(c=>
+      '<a style="--ch:'+c.col+'" href="'+c.url+'" target="_blank" rel="noopener">'+
+      chIcon(c.id,15)+c.name+'</a>').join('')+'</div>' : '')+
+    '</div>';
+}
+
+function openKit(){
+  const s=SCENES[current]; if(!s.kit) return;
+  listCtx={fn:openKit, label:'Оборудование кабинета'};
+  pKicker.textContent='Оборудование кабинета';
+  pBody.innerHTML='<h2 id="pTitle">'+s.title+'</h2>'+
+    '<p class="model">'+s.kit.length+' '+
+      plural(s.kit.length,'единица','единицы','единиц')+' оборудования</p>'+
+    '<div class="kitgrid">'+s.kit.map(id=>{
+      const it=ITEMS[id];
+      return '<button data-id="'+id+'"><img src="'+eqSrc(it.img)+'" alt="" loading="lazy"><em>'+it.t+'</em></button>';
+    }).join('')+'</div>';
+  pBody.querySelectorAll('.kitgrid button').forEach(b=>b.onclick=()=>openItem(b.dataset.id));
+  showPanel();
+}
+
+/* ---- документы на стойке ---- */
+function openDocs(){
+  listCtx=null;
+  pKicker.textContent='Стойка администратора';
+  const arrow='<svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none">'+
+    '<path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const ext='<svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M7 17L17 7M17 7H8M17 7v9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const link=l=>'<a class="doclink" href="'+l.href+'" target="_blank" rel="noopener">'+l.text+ext+'</a>';
+  pBody.innerHTML='<h2 id="pTitle">Документы клиники</h2>'+
+    '<p class="model">Основные сведения о клинике, лицензии и враче</p>'+
+    DOCS.map(d=>
+      '<details class="doc"'+(d.open?' open':'')+'>'+
+      '<summary>'+d.k+arrow+'</summary>'+
+      '<div class="doc-body">'+
+      (d.rows?'<dl class="rows">'+d.rows.map(r=>
+        '<dt>'+r[0]+'</dt><dd>'+r[1]+'</dd>').join('')+'</dl>':'')+
+      (d.list?'<ul class="memo">'+d.list.map(t=>'<li>'+t+'</li>').join('')+'</ul>':'')+
+      /* Галерея: в сетке лежат лёгкие превью, полный скан открывается
+         поверх страницы. Ссылки в новое окно тут не годятся — в артефакте
+         картинки инлайнятся в data:, и такая вкладка просто не откроется. */
+      (d.gallery&&d.gallery.length
+        ? '<div class="docgal">'+d.gallery.map((g,gi)=>
+            '<button type="button" data-doc="'+gi+'" title="'+g.t+'">'+
+            '<img src="'+docSrc(g.src+'-thumb')+'" alt="'+g.t+'" loading="lazy">'+
+            '<em>'+g.t+(g.m?'<span>'+g.m+'</span>':'')+'</em></button>').join('')+
+          '</div>'+
+          (d.galleryNote?'<p class="docnote">'+d.galleryNote+'</p>':'')
+        : '')+
+      (d.note?'<p class="docnote">'+d.note+'</p>':'')+
+      (d.link?link(d.link):'')+
+      (d.links?d.links.map(link).join(''):'')+
+      (d.flag?'<p class="flag">'+d.flag+'</p>':'')+
+      '</div></details>').join('')+
+    waBtn('Записаться на приём');
+  /* Вешаем обработчики после вставки разметки: делегировать некуда,
+     панель перерисовывается целиком при каждом открытии. */
+  const gal = DOCS.find(d=>d.gallery&&d.gallery.length);
+  if(gal) pBody.querySelectorAll('[data-doc]').forEach(b=>{
+    b.onclick=()=>openDocShot(gal.gallery, +b.dataset.doc);
+  });
+  showPanel();
+}
+
+/* Просмотр скана поверх страницы: стрелки листают, Esc закрывает. */
+let shotList=null, shotIdx=0;
+function openDocShot(list, i){
+  shotList=list; shotIdx=i;
+  const g=list[i];
+  $('#shotImg').src=docSrc(g.src);
+  $('#shotImg').alt=g.t;
+  $('#shotTitle').textContent=g.t;
+  $('#shotMeta').textContent=g.m||'';
+  $('#shotNum').textContent=(i+1)+' / '+list.length;
+  $('#shot').classList.add('on');
+  $('#shot').classList.remove('zoom');   /* новый документ — снова вписанный */
+  $('#shot').scrollLeft=0;
+  $('#shotClose').focus();
+}
+function stepDocShot(d){
+  if(!shotList) return;
+  openDocShot(shotList, (shotIdx+d+shotList.length)%shotList.length);
+}
+function closeDocShot(){
+  $('#shot').classList.remove('on','zoom'); shotList=null;
+}
+/* Тап по скану — увеличить/вернуть. Центрируем по горизонтали, иначе
+   увеличенный документ открывается на левом краю и кажется обрезанным. */
+function toggleDocZoom(){
+  const sh=$('#shot'), z=sh.classList.toggle('zoom');
+  if(z) requestAnimationFrame(()=>{ sh.scrollLeft=(sh.scrollWidth-sh.clientWidth)/2; });
+}
+
+/* ---- каталог всего оборудования ---- */
+let catFilter='all';
+function openCatalog(f){
+  if(f) catFilter=f;
+  const rooms=[['all','Всё'],['treatment-blue','Кабинет №1'],
+               ['treatment-black','Кабинет №2'],['sterilization','Стерилизационная']];
+  const ids = catFilter==='all'
+    ? Object.keys(ITEMS).filter(k=>ITEMS[k].img)
+    : (SCENES[catFilter].kit||[]);
+  listCtx={fn:()=>openCatalog(catFilter), label:'Наше оборудование'};
+  pKicker.textContent='Наше оборудование';
+  pBody.innerHTML='<h2 id="pTitle">Наше оборудование</h2>'+
+    '<p class="model">'+ids.length+' '+plural(ids.length,'единица','единицы','единиц')+' в подборке</p>'+
+    '<div class="filters">'+rooms.map(r=>
+      '<button data-f="'+r[0]+'"'+(r[0]===catFilter?' aria-current="true"':'')+'>'+r[1]+'</button>').join('')+'</div>'+
+    '<div class="kitgrid">'+ids.map(id=>{
+      const it=ITEMS[id];
+      return '<button data-id="'+id+'"><img src="'+eqSrc(it.img)+'" alt="" loading="lazy"><em>'+it.t+'</em>'+
+             (it.m&&!/уточня/i.test(it.m)?'<i>'+it.m+'</i>':'')+'</button>';
+    }).join('')+
+    /* последний лот — не прибор, а приглашение к разговору */
+    '<div class="kitnote"><b>Остались вопросы?</b>'+
+    '<span>Остались вопросы? Информацию и документы на любой прибор уточняйте у врача или администратора.</span></div>'+
+    '</div>';
+  pBody.querySelectorAll('.filters button').forEach(b=>b.onclick=()=>openCatalog(b.dataset.f));
+  pBody.querySelectorAll('.kitgrid button').forEach(b=>b.onclick=()=>openItem(b.dataset.id));
+  showPanel();
+}
+function plural(n,a,b,c){
+  const m=n%100, d=n%10;
+  return m>=11&&m<=14 ? c : d===1 ? a : d>=2&&d<=4 ? b : c;
+}
+
+function showPanel(){panel.classList.add('on');scrim.classList.add('on');pBody.scrollTop=0;$('#pClose').focus();}
+function hidePanel(){panel.classList.remove('on');scrim.classList.remove('on');}
+
+$('#pClose').onclick=hidePanel;
+scrim.onclick=hidePanel;
+$('#kitBtn').onclick=openKit;
+$('#startBtn').onclick=()=>$('#intro').classList.add('off');
+$('#shotClose').onclick=closeDocShot;
+$('#shotPrev').onclick=()=>stepDocShot(-1);
+$('#shotNext').onclick=()=>stepDocShot(1);
+/* Клик мимо картинки закрывает просмотр, по самой картинке — увеличивает. */
+$('#shotImg').onclick=e=>{ e.stopPropagation(); toggleDocZoom(); };
+$('#shot').onclick=e=>{ if(e.target.id==='shot') closeDocShot(); };
+
+addEventListener('keydown',e=>{
+  /* Пока открыт скан, стрелки листают его, а Esc закрывает только его —
+     до панели событие не идёт, иначе одним Esc схлопывалось бы всё сразу. */
+  if(shotList){
+    if(e.key==='Escape'){ closeDocShot(); return; }
+    if(e.key==='ArrowLeft'){ stepDocShot(-1); return; }
+    if(e.key==='ArrowRight'){ stepDocShot(1); return; }
+  }
+  if(e.key==='Escape'){hidePanel();$('#intro').classList.add('off');}
+  if(e.key==='e'||e.key==='E'||e.key==='у'||e.key==='У'){
+    if(e.target.tagName==='INPUT' || (typeof G!=='undefined' && G.on)) return;
+    document.body.classList.toggle('editing');
+  }
+});
+
+/* режим разметки: клик по сцене отдаёт координаты */
+frame.addEventListener('click',e=>{
+  if(!document.body.classList.contains('editing')) return;
+  const r=frame.getBoundingClientRect();
+  const x=+(((e.clientX-r.left)/r.width)*100).toFixed(1);
+  const y=+(((e.clientY-r.top)/r.height)*100).toFixed(1);
+  const line='{id:\'ЗАМЕНИТЬ\', x:'+x+', y:'+y+'},';
+  const out=$('#editOut');
+  out.textContent = current+'  →  '+line+'\n'+out.textContent;
+  navigator.clipboard?.writeText(line).catch(()=>{});
+});
+
+/* =====================================================================
+   МИНИ-ИГРА «БОР ПРОТИВ КАРИЕСА»
+   Бесконечная. Управление одно: бор едет за курсором или пальцем.
+   Кариозные монстры падают к зубу; коснулся — уничтожил, пропустил — минус жизнь.
+   ===================================================================== */
+/* Сложность — все ручки здесь.
+   Прогресс p растёт и от очков, и от времени, а кривые экспоненциальные:
+   быстро на старте, дальше всё более пологие. Резкой стены нет. */
+const DIFF = {
+  /* Поток плотный с первых секунд: пустой экран скучнее любого перекоса
+     по сложности. Рост остаётся пологим — стены по-прежнему нет.
+     maxBlobs держит кадр: при заторе поток просто ждёт, а не копит. */
+  spawnMin:430, spawnBase:330, spawnEase:7,
+  speed0:0.000152, speedK:0.20, speedEase:3,
+  ptsPerProgress:90, msPerProgress:20000,
+  maxBlobs:52,
+  grav:0.00000055,                 // возврат осколка к падению после отскока
+  drillRegen:0.45                  // отпустил бор — лунка медленно затягивается
+};
+
+/* Четыре калибра. Крупный не «сверлится» временем, а требует нескольких
+   касаний: бор нужно вывести и завести обратно, как взмах в Fruit Ninja.
+   w — веса появления в четырёх полосах прогресса (p<1, <3, <6, дальше). */
+const KINDS = {
+  tiny  :{pts:10, r:17, hits:1, split:null,          col:'#8A3B2E', w:[45,30,22,16]},
+  small :{pts:15, r:26, hits:1, split:null,          col:'#5A4636', w:[55,45,35,30]},
+  medium:{pts:25, r:38, hits:2, split:['small', 2],  col:'#4A3B2E', w:[ 0,25,33,34]},
+  large :{pts:45, r:52, hits:3, split:['medium',2],  col:'#332821', w:[ 0, 0,10,20]}
+};
+const HIT_LOCK = 90;   // мс невосприимчивости после касания
+
+/* Передышка новорождённого очага.
+   Мелочь из супер-кариеса и из тяжёлого очага появляется ровно там, где
+   стоит бор, — ведь бор в этот момент бьёт по ним в упор. Без паузы она
+   гибла в том же кадре, в котором родилась: на экране просто мигало, и
+   было непонятно, за что начислены очки. Теперь осколок сначала успевает
+   отлететь, и только потом становится уязвимым. На время паузы он ещё и
+   прозрачнее и мельче — видно, что он «вылупляется», а не что удар не
+   засчитался. */
+const SPAWN_GRACE = {
+  boss:  420,   /* из супер-кариеса — летят дальше всех, пауза длиннее */
+  heavy: 340,   /* из тяжёлого очага */
+  split: 220    /* обломки крупного: их ловят в воздухе за двойные очки,
+                   поэтому пауза короткая, иначе приём перестанет работать */
+};
+
+/* Тяжёлый очаг — младший брат супер-кариеса: десять касаний, с каждого
+   отлетает мелочь. Специально БЕЗ тревоги и подписи: его узнают по размеру,
+   по тому, что он идёт медленнее соседей, и по тому, что он не сносится
+   с удара. Объяснять это словами на старте было бы лишним. */
+const HEAVY = {
+  /* r заметно больше, чем у large (52): мини-босс обязан читаться крупнее
+     обычного крупного очага, иначе по размеру его от них не отличить. */
+  pts:160, r:64, hits:10,
+  col:'#2A1713', col2:'#5C2B21',
+  speedK:0.78,                     /* чуть медленнее обычного потока */
+  /* Порог по очкам — только чтобы он не выпал в первые секунды, пока человек
+     ещё ловит управление. Раньше здесь стояло 4000, и отсчёт паузы начинался
+     ТОЛЬКО после этого счёта: до первого тяжёлого очага доигрывали единицы.
+     Теперь отсчёт идёт с начала партии, а порог взят заведомо низкий. */
+  firstAt:300,
+  firstIn:9000,                    /* первый — примерно через это время, мс */
+  minGap:15000, randGap:10000,     /* пауза между следующими, мс */
+  spitMin:1, spitMax:2
+};
+
+/* Бонусы. Вес зависит от ситуации: фтор почти не выпадает при полном
+   здоровье, ультразвук — только когда на экране есть что дробить. */
+const BONUS = {
+  /* Фтор не выпадает вовсе, пока зуб цел — лечить нечего. */
+  fluor  :{col:'#2F7E86', label:'Фтор — жизнь',        w:()=>G.lives<3?3.4:0},
+  anest  :{col:'#7A4DFF', label:'Анестезия — медленнее', w:()=>2.0},
+  airflow:{col:'#1B3D96', label:'Air Flow — широкий бор',w:()=>2.0},
+  turbo  :{col:'#C2701A', label:'Турбина — с одного касания', w:()=>2.4},
+  ultra  :{col:'#2AA0C4', label:'Ультразвук — дробит всё',
+           w:()=>G.blobs.some(b=>b.kind&&KINDS[b.kind].split)?1.8:0.2},
+  x2     :{col:'#B08900', label:'Двойные очки',         w:()=>1.5}
+};
+const CHARGE_MAX = 230;            // столько очков копится на один бонус
+
+/* Супер-бонус — знак клиники. Падает редко и медленно, снимается
+   только пятью касаниями, зато сносит всё, что есть на экране. */
+const SUPER = {
+  col:'#1B3D96', r:34, hits:5, fall:0.000072,
+  firstAt:34000, everyMin:52000, everyRand:26000, gate:1.2
+};
+
+/* Три эффекта знака. Какой достанется — видно заранее, подписью под диском:
+   игрок сам решает, стоит ли ради него бросать всё остальное. */
+const SUPER_FX = {
+  burs :{w:()=>5.5,                 col:'#1B3D96', label:'Гигиена'},
+  wipe :{w:()=>2.6,                 col:'#2AA0C4', label:'Чистый рот'},
+  armor:{w:()=>G.armor?0:1.4,       col:'#C2701A', label:'Броня на зуб'}
+};
+/* --------------------------------------------------------------------
+   ВОЛНЫ ПРИЁМА
+   Ровный поток — главная причина, по которой игра быстро приедалась:
+   оптимальная тактика всегда одна. Волны задают ритм: накат, передышка,
+   смена состава очагов. rate — множитель паузы между появлениями
+   (меньше = гуще), mix — множители весов калибров.
+   -------------------------------------------------------------------- */
+/* Ритм потока: плотность (rate — множитель паузы) и состав (mix — множители
+   весов калибров) колеблются по кругу. Игроку это никак не называется. */
+/* Волны короче и плотнее прежнего: характер каждой считывается за десяток
+   секунд, а смена ритма происходит чаще — от этого игра и кажется живее.
+   rate — множитель к паузе между появлениями, меньше значит чаще. */
+const WAVES = [
+  {name:'Осмотр',    len:9000,  rate:1.05, mix:{tiny:1.4, small:1.0, medium:0.5, large:0.3}},
+
+  {name:'Чистка',    len:14000, rate:0.60, mix:{tiny:1.7, small:1.3, medium:0.5, large:0.2}},
+
+  {name:'Лечение',   len:17000, rate:0.72, mix:{tiny:0.5, small:0.9, medium:1.6, large:1.4}},
+
+  {name:'Полировка', len:11000, rate:0.50, mix:{tiny:2.1, small:1.0, medium:0.3, large:0.1}}
+];
+const COMBO_HOLD = 2800;           /* серия тает, если не бить */
+
+/* Осколок, сбитый пока летит вверх, стоит вдвое. Отскок перестаёт быть
+   украшением и превращается в навык: разбил крупный — успей поймать обломки. */
+const AIR_BONUS = 2;
+
+/* На множителе ×3 и выше удар бьёт по соседям в радиусе — выгодно
+   целиться в гущу, а не в одиночный очаг. */
+const CHAIN = {fromMult:3, r:95, max:3};
+
+/* Золотой очаг: редкий, быстрый, дорогой и сам исчезает через несколько
+   секунд. Момент «бросай всё и лови». */
+const GOLD = {pts:120, speedK:1.7, ttl:5200, r:20, col:'#C9A227', glow:'#F2D76B',
+              firstAt:20000, minGap:17000, randGap:13000};
+const DANGER_Y   = 0.66;           /* с этой высоты очаг подсвечивается */
+/* Смерть супер-кариеса: сначала зрелище, сертификат — только после него. */
+/* Финал говорит на языке самой игры: очаг уничтожен — рот стал чистым,
+   зуб залечен и блеснул. Без конфетти и без золота: палитра сайта. */
+const FINALE = {ms:2300, wave:[140,1000], heal:[650,1350], gleam:[1250,2000]};
+const BUR_R = 28;                  /* радиус бора (было 24, +15%) */
+const BURS = {n:10, speed:0.00052, life:1700, r:17};
+
+/* Пока на зубе броня, к нему точечно рвутся быстрые мелкие очаги:
+   броня должна сниматься в бою, а не висеть мёртвым грузом. */
+const HUNTER = {firstGap:4200, minGap:2600, randGap:2400, speedK:2.3, bonusPts:1.6,
+                kinds:['tiny','tiny','small']};
+
+/* Токсичный очаг: трогать нельзя. Задевать бором — минус пол-жизни.
+   До зуба долетает безвредно, вся опасность только в касании. */
+const TOXIC = {enabled:false,          /* ← временно выключены; true — вернуть */
+               col:'#6FA800', glow:'#A5D820', r:24, speedK:0.85,
+               firstAt:26000, minGap:13000, randGap:9000,
+               cost:0.5, label:'Не трогать!'};
+
+/* Награда за супер-кариеса: один сертификат, две опции на выбор.
+   Суммы живут только здесь — отсюда же их берут стартовый экран игры,
+   текст для мессенджера и плашка на телевизоре. Менять в одном месте. */
+const CERT = {
+  /* what — короткая подпись для экрана: одно слово, поэтому не переносится
+     ни на каком размере. dat — та же услуга в винительном падеже, она нужна
+     сертификату и письму в мессенджер («сертификат на профгигиену»). */
+  options:[
+    {sum:'1000 ₽', what:'Профгигиена',  dat:'на профгигиену'},
+    {sum:'5000 ₽', what:'Имплантация',  dat:'на имплантацию'}
+  ],
+  /* Текст плашки, которая всплывает на телевизоре. Сюда можно вписать
+     любую сумму или формулировку — на остальное это не влияет. */
+  badge:'Акция · до 5000 ₽',
+  months:1, phone:'79897512851', clinic:'Академия улыбки',
+  addr:'Сочи, ул. Виноградная, 55/1, пом. 22',
+  tel:'+7 (989) 751-28-51',
+  terms:'Действителен при первом посещении клиники. Не суммируется с другими предложениями и акциями. Один сертификат на человека. Предъявите код администратору. Имеются противопоказания, необходима консультация специалиста.'
+};
+
+/* Супер-кариес. Медленный, огромный. Каждое попадание выплёвывает из него
+   мелочь — добить трудно именно поэтому. Число касаний живёт только здесь:
+   любая подпись собирается из BOSS.hits. */
+const BOSS = {
+  /* Порог в ОЧКАХ. 30 000 — это около тысячи точных попаданий, то есть
+     обещанный на старте сертификат был недостижим за обычную партию.
+     12 000 — несколько минут уверенной игры, второй босс на 24 000. */
+  every:12000,
+  hits:50, r:70, fall:0.000034, alert:4800,
+  col:'#4A1512', col2:'#7A2A22', spawnMin:1, spawnMax:3
+};
+
+const G = {on:false, raf:0, score:0, best:0, lives:3, t:0, spawn:0,
+           blobs:[], burst:[], px:.5, py:.62, over:false, started:false,
+           combo:0, mult:1, slow:0, wide:0, turbo:0, dbl:0,
+           charge:0, queued:'anest',
+           superIn:SUPER.firstAt, shock:null, flashScreen:0,
+           wave:0, waveT:0, banner:null, comboT:0, freeze:0, shake:0, pops:[],
+           arcs:[], goldIn:GOLD.firstAt, chainSeen:false,
+           finale:null, chunks:[], rings:[],
+           burs:[], armor:false, alert:0, boss:null, nextBossAt:BOSS.every,
+           hunterIn:0, paused:false, toxicIn:TOXIC.firstAt, cert:null,
+           heavyIn:HEAVY.firstIn};
+try{ G.best = +(localStorage.getItem('au-tour-best')||0) || 0; }catch(_){}
+
+const gWrap=$('#game'), cv=$('#gameCanvas'), ctx=cv.getContext('2d');
+let W=0,H=0,DPR=1;
+
+/* Чёткость холста. На телефоне с DPR 2 арена — это больше миллиона
+   пикселей на кадр, и даже при лёгком коде их не успевает разложить сам
+   браузер. Поэтому держим коэффициент отдельно и снижаем его, если кадры
+   реально не укладываются в бюджет. Обратно не поднимаем — иначе чёткость
+   будет прыгать туда-сюда. */
+function gResize(){
+  const r=cv.parentElement.getBoundingClientRect();
+  DPR=Math.min(devicePixelRatio||1, 2) * (G.dprScale||1);
+  W=r.width; H=r.height;
+  cv.width=W*DPR; cv.height=H*DPR;
+  cv.style.width=W+'px'; cv.style.height=H+'px';
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  /* Кэши, привязанные к размеру, после смены размера недействительны. */
+  G.dangerGrad=null; G.toothShCv=null;
+}
+
+/* Тень зуба, нарисованная заранее. Размытие на канвасе стоит дорого, а
+   тень в обычном состоянии не меняется — считаем один раз на размер. */
+function toothShadow(s){
+  if(G.toothShCv && G.toothShS===s) return G.toothShCv;
+  const pad=26, side=Math.ceil(s*2.4+pad*2);
+  const c=document.createElement('canvas');
+  c.width=c.height=Math.ceil(side*DPR);
+  c.style.width=c.style.height=side+'px';
+  const x=c.getContext('2d');
+  x.setTransform(DPR,0,0,DPR,0,0);
+  x.fillStyle='#fff';
+  x.shadowColor='rgba(20,22,26,.18)'; x.shadowBlur=18; x.shadowOffsetY=4;
+  toothPath(x, side/2, side/2, s);
+  x.fill();
+  /* Сам зуб стирать не нужно: сверху его всё равно перерисуют белым,
+     а мягкий край тени остаётся. */
+  G.toothShCv=c; G.toothShS=s; G.toothShSide=side;
+  return c;
+}
+
+/* Замер идёт по средней длительности кадра за полсекунды. Два порога:
+   сначала снимаем чёткость до 0.75, потом до 0.6 — дальше картинка
+   начинает мылить, и лучше мириться с частотой. */
+function autoQuality(dt){
+  if(G.finale || G.paused) return;          /* финал и пауза не показательны */
+  G.qN=(G.qN||0)+1; G.qSum=(G.qSum||0)+dt;
+  if(G.qN<30) return;
+  const avg=G.qSum/G.qN; G.qN=0; G.qSum=0;
+  const scale=G.dprScale||1;
+  if(avg>26 && scale>0.75){ G.dprScale=0.75; gResize(); }
+  else if(avg>30 && scale>0.6){ G.dprScale=0.6; gResize(); }
+}
+
+function openGame(){
+  gWrap.classList.add('on'); document.body.style.overflow='hidden';
+  gResize(); gReset(); G.on=true; G.started=false;
+  $('#gOver').hidden=true; $('#gStart').hidden=false;
+  $('#gBest').textContent=G.best;
+  cancelAnimationFrame(G.raf); G.raf=requestAnimationFrame(gLoop);
+}
+function closeGame(){
+  G.on=false; G.paused=false;
+  cancelAnimationFrame(G.raf); G.raf=0;
+  /* Отложенная отрисовка сертификата и его blob-ссылка живут дольше партии,
+     если их не прибрать: закрыли игру — прибираем. */
+  certDone();
+  if(G.certUrl){ URL.revokeObjectURL(G.certUrl); G.certUrl=null; }
+  $('#gReward').hidden=true; $('#gPause').hidden=true;
+  gWrap.classList.remove('on'); document.body.style.overflow='';
+}
+function gReset(){
+  G.score=0; G.lives=3; G.t=0; G.spawn=0;
+  G.blobs=[]; G.burst=[]; G.over=false;
+  G.combo=0; G.mult=1; G.slow=0; G.wide=0; G.turbo=0; G.dbl=0;
+  G.charge=0; queueBonus();
+  G.superIn=SUPER.firstAt; G.shock=null; G.flashScreen=0;
+  G.burs=[]; G.armor=false; G.alert=0; G.boss=null; G.nextBossAt=BOSS.every;
+  G.hunterIn=0; G.toxicIn=TOXIC.firstAt; G.heavyIn=HEAVY.firstIn; setPause(false);
+  G.wave=0; G.waveT=0; G.banner=null;
+  G.comboT=0; G.freeze=0; G.shake=0; G.pops=[]; G.arcs=[];
+  G.goldIn=GOLD.firstAt; G.chainSeen=false;
+  G.finale=null; G.chunks=[]; G.rings=[];
+  G.cert=null; G.certPending=false;
+  $('#gReward').hidden=true;
+  $('#gScore').textContent='0'; gCombo(); gHearts(); gArmor();
+}
+
+/* ---- трекер бонуса ---- */
+function queueBonus(){
+  const keys=Object.keys(BONUS), ws=keys.map(k=>BONUS[k].w());
+  let r=Math.random()*ws.reduce((a,b)=>a+b,0);
+  G.queued=keys[keys.length-1];
+  for(let i=0;i<keys.length;i++){ r-=ws[i]; if(r<=0){ G.queued=keys[i]; break; } }
+  gCharge();
+}
+function gCharge(){
+  const B=BONUS[G.queued];
+  $('#gChargeIcon').style.background=B.col;
+  $('#gChargeFill').style.width=Math.min(100,G.charge/CHARGE_MAX*100)+'%';
+  $('#gChargeFill').style.background=B.col;
+  $('#gCharge').title='Копится: '+B.label;
+}
+function addCharge(pts){
+  G.charge+=pts;
+  if(G.charge>=CHARGE_MAX){
+    G.charge=0;
+    G.blobs.push({bonus:G.queued, x:.12+Math.random()*.76, y:-0.09, r:17,
+                  vy:0.00012, vx:0, vTerm:0.00012, a:0});
+    queueBonus();
+  } else gCharge();
+}
+const elCombo=$('#gCombo');     /* узел не меняется — ищем один раз */
+function gCombo(){
+  const el=elCombo;
+  el.textContent = G.mult>1 ? '×'+G.mult : '';
+  el.classList.toggle('hot', G.mult>1);
+  el.style.opacity = '1';
+}
+function progress(){
+  return G.score/DIFF.ptsPerProgress + G.t/DIFF.msPerProgress;
+}
+/* Жизни дробные: токсичный очаг снимает половину сердца. */
+function gHearts(){
+  let h='';
+  for(let i=0;i<3;i++){
+    const f=Math.max(0,Math.min(1,G.lives-i));
+    h+='<span class="hz">♥<i style="width:'+(f*100).toFixed(0)+'%">♥</i></span>';
+  }
+  $('#gLives').innerHTML=h;
+}
+function gArmor(){
+  $('#gArmor').hidden = !G.armor;
+  /* пауза перед первым охотником — чтобы игрок успел заметить броню */
+  if(G.armor && G.hunterIn<=0) G.hunterIn = HUNTER.firstGap;
+}
+
+/* ---- пауза ---- */
+function setPause(on){
+  G.paused = !!on && G.started && !G.over;
+  /* при открытом сертификате игра тоже стоит, но карточку паузы не показываем */
+  $('#gPause').hidden = !G.paused || !$('#gReward').hidden;
+  const btn=$('#gPauseBtn');
+  btn.setAttribute('aria-label', G.paused?'Продолжить':'Пауза');
+  btn.innerHTML = G.paused
+    ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5l11 7-11 7V5Z"/></svg>'
+    : '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="7" y="5" width="3.6" height="14" rx="1"/><rect x="13.4" y="5" width="3.6" height="14" rx="1"/></svg>';
+}
+function togglePause(){
+  if(!$('#gReward').hidden) return;             /* сертификат сам держит паузу */
+  setPause(!G.paused);
+}
+function pickWeighted(map){
+  const keys=Object.keys(map), ws=keys.map(k=>map[k].w());
+  const sum=ws.reduce((a,b)=>a+b,0);
+  if(sum<=0) return keys[0];
+  let r=Math.random()*sum;
+  for(let i=0;i<keys.length;i++){ r-=ws[i]; if(r<=0) return keys[i]; }
+  return keys[keys.length-1];
+}
+function gStart(){ gReset(); G.started=true; $('#gStart').hidden=true; $('#gOver').hidden=true; }
+
+/* положение бора */
+function gPoint(e){
+  const r=cv.getBoundingClientRect();
+  G.px=(e.clientX-r.left)/r.width; G.py=(e.clientY-r.top)/r.height;
+}
+cv.addEventListener('pointermove',e=>{gPoint(e);e.preventDefault();});
+cv.addEventListener('pointerdown',e=>{gPoint(e); if(!G.started||G.over) gStart();});
+
+function gLoop(ts){
+  if(!G.on) return;
+  const dt=Math.min(32,ts-(G.last||ts)); G.last=ts;
+  G.dtLast=dt;                 /* отрисовке тоже нужен шаг времени */
+  autoQuality(dt);
+  /* Страховка: любая ошибка внутри шага или отрисовки раньше убивала
+     requestAnimationFrame — картинка замирала намертво. Теперь кадр
+     пропускается, игра живёт дальше, а причина видна в консоли. */
+  try{
+    if(G.finale) stepFinale(dt);                 /* время стоит, гремит финал */
+    else if(G.freeze>0) G.freeze-=dt;            /* стоп-кадр после сильного удара */
+    else if(G.started&&!G.over&&!G.paused) gStep(dt);
+  }catch(err){ console.error('[игра] сбой в шаге:', err); }
+  try{ gDraw(); }
+  catch(err){ console.error('[игра] сбой в отрисовке:', err); }
+  G.raf=requestAnimationFrame(gLoop);
+}
+
+function band(p){ return p<1?0 : p<3?1 : p<6?2 : 3; }
+function pickKind(p){
+  const bi=band(p), keys=Object.keys(KINDS), mix=WAVES[G.wave].mix;
+  const ws=keys.map(k=>KINDS[k].w[bi]*(mix[k]!=null?mix[k]:1));
+  const sum=ws.reduce((a,b)=>a+b,0);
+  if(sum<=0) return 'small';
+  let r=Math.random()*sum;
+  for(let i=0;i<keys.length;i++){ r-=ws[i]; if(r<=0) return keys[i]; }
+  return 'small';
+}
+function stepWave(dt){
+  G.waveT += dt;
+  if(G.waveT >= WAVES[G.wave].len){
+    G.waveT = 0;
+    G.wave = (G.wave+1) % WAVES.length;
+  }
+}
+/* Всплывающие очки разводим по вертикали: при серии в одном месте
+   цифры иначе печатаются друг на друге и не читаются. */
+function pop(x,y,text,col){
+  let yy=y;
+  for(let pass=0; pass<4; pass++){
+    const clash=G.pops.some(q=>Math.abs(q.x-x)*W<70 && Math.abs(q.y-yy)*H<24);
+    if(!clash) break;
+    yy -= 26/H;
+  }
+  G.pops.push({x, y:yy, text, col, life:900});
+  if(G.pops.length>24) G.pops.shift();
+}
+
+function makeBlob(kind,x,y,vy,vx){
+  const K=KINDS[kind];
+  return {kind, x, y, r:K.r*(0.92+Math.random()*0.16),
+          vy, vx, vTerm:DIFF.speed0*(1+DIFF.speedK*Math.log1p(progress()/DIFF.speedEase)),
+          a:Math.random()*6.28, hits:K.hits, hits0:K.hits,
+          inside:false, lock:0, flash:0,
+          /* половина очагов идёт по дуге, а не отвесно — иначе все траектории
+             одинаковые и планировать маршрут бора незачем */
+          sw: Math.random()<0.5
+              ? {a:0.00022+Math.random()*0.00040,
+                 f:0.0011+Math.random()*0.0011, p:Math.random()*6.28}
+              : null};
+}
+
+/* Пауза неуязвимости с момента рождения. lock уже умеет её отсчитывать,
+   born нужен только для вида: по нему рисуется появление. */
+function grace(b, ms){ b.lock=ms; b.born=ms; b.born0=ms; return b; }
+
+function gStep(dt){
+  G.t+=dt;
+  const p = progress();
+
+  if(G.slow>0)  G.slow-=dt;
+  if(G.wide>0)  G.wide-=dt;
+  if(G.turbo>0) G.turbo-=dt;
+  if(G.dbl>0)   G.dbl-=dt;
+  const mdt = dt * (G.slow>0 ? 0.45 : 1);
+
+  /* ---- супер-кариес: сначала тревога и пауза на зачистку ---- */
+  if(!G.boss && G.alert<=0 && G.score>=G.nextBossAt){
+    G.alert = BOSS.alert;
+    G.nextBossAt += BOSS.every;
+  }
+  if(G.alert>0){
+    G.alert -= dt;
+    if(G.alert<=0) spawnBoss();
+  }
+  const calm = G.alert>0 || G.boss;      /* в тревогу и в бой обычный поток стоит */
+
+  /* летящие боры */
+  for(let i=G.burs.length-1;i>=0;i--){
+    const u=G.burs[i];
+    u.x+=u.vx*dt; u.y+=u.vy*dt; u.life-=dt;
+    if(u.life<=0 || u.x<-.1||u.x>1.1||u.y<-.1||u.y>1.1){ G.burs.splice(i,1); continue; }
+    for(let j=G.blobs.length-1;j>=0;j--){
+      const o=G.blobs[j];
+      if(o.bonus||o.superb||o.boss||o.toxic) continue;   /* боры токсичное не трогают */
+      /* Тяжёлый очаг бор не сносит: снимает одно касание из десяти.
+         Иначе десять боров стирали бы его бесплатно, и он терял бы смысл. */
+      if(o.heavy){
+        const ddx=(o.x-u.x)*W, ddy=(o.y-u.y)*H, rr=o.r+BURS.r;
+        if(ddx*ddx+ddy*ddy < rr*rr && o.lock<=0){
+          o.hits--; o.lock=HIT_LOCK; o.flash=170;
+          G.burs.splice(i,1);
+          for(let k=0;k<6;k++) G.burst.push({x:o.x,y:o.y,col:HEAVY.col2,
+            vx:(Math.random()-.5)*.8, vy:(Math.random()-.5)*.8, life:.8});
+          if(o.hits<=0) heavyDown(o,j);
+          break;
+        }
+        continue;
+      }
+      if(o.born>0) continue;                   /* новорождённого бор тоже не трогает */
+      const ux=(o.x-u.x)*W, uy=(o.y-u.y)*H, ur=o.r+BURS.r;
+      if(ux*ux+uy*uy < ur*ur){
+        /* Раньше здесь была вторая, своя формула начисления: без множителя,
+           без серии и без раскола крупного очага — она успела разойтись с
+           основной. Теперь бор бьёт тем же kill(), что и рука игрока, и
+           расходуется на удар, а не летит сквозь весь экран. */
+        kill(o, j);
+        G.burs.splice(i,1);
+        break;
+      }
+    }
+  }
+
+  /* появление */
+  G.spawn -= dt;
+  if(G.spawn<=0 && !calm && G.blobs.length<DIFF.maxBlobs){
+    const gap = (DIFF.spawnMin + DIFF.spawnBase*Math.exp(-p/DIFF.spawnEase))
+                * WAVES[G.wave].rate;
+    G.spawn = gap*(0.78+Math.random()*0.44);
+    const k=pickKind(p);
+    const v=DIFF.speed0*(1+DIFF.speedK*Math.log1p(p/DIFF.speedEase));
+    G.blobs.push(makeBlob(k, .08+Math.random()*.84, -0.09, v, (Math.random()-.5)*0.00035));
+  }
+
+  /* ---- тяжёлый очаг: без объявления, узнаётся по виду и повадке ----
+     Таймер тикает с начала партии, а счёт проверяется только в момент
+     появления. Если поставить счёт условием самого отсчёта, пауза начнётся
+     заново после набора очков и первый очаг уедет на полминуты. */
+  if(!calm){
+    G.heavyIn -= dt;
+    if(G.heavyIn<=0 && G.score>=HEAVY.firstAt && G.blobs.length<DIFF.maxBlobs){
+      G.heavyIn = HEAVY.minGap + Math.random()*HEAVY.randGap;
+      spawnHeavy(p);
+    }
+  }
+
+  /* охотники за бронёй: пока щит цел, к зубу точечно рвётся быстрая мелочь */
+  if(G.armor && !calm){
+    G.hunterIn -= dt;
+    if(G.hunterIn<=0){
+      G.hunterIn = HUNTER.minGap + Math.random()*HUNTER.randGap;
+      const hk=HUNTER.kinds[(Math.random()*HUNTER.kinds.length)|0];
+      const hv=DIFF.speed0*(1+DIFF.speedK*Math.log1p(p/DIFF.speedEase))*HUNTER.speedK;
+      const h=makeBlob(hk, .1+Math.random()*.8, -0.08, hv, (Math.random()-.5)*0.0002);
+      h.vTerm=hv; h.hunter=true;
+      G.blobs.push(h);
+    }
+  } else if(!G.armor){ G.hunterIn=0; }
+
+  /* золотой очаг — успей поймать, он сам исчезает */
+  G.goldIn -= dt;
+  if(G.goldIn<=0 && !calm && p>0.8 && !G.blobs.some(o=>o.gold)){
+    G.goldIn = GOLD.minGap + Math.random()*GOLD.randGap;
+    const gv=DIFF.speed0*(1+DIFF.speedK*Math.log1p(p/DIFF.speedEase))*GOLD.speedK;
+    const g=makeBlob('small', .12+Math.random()*.76, -0.08, gv, (Math.random()-.5)*0.0005);
+    g.gold=true; g.r=GOLD.r; g.vTerm=gv; g.ttl=GOLD.ttl; g.hits=1; g.hits0=1;
+    G.blobs.push(g);
+  }
+
+  /* токсичный очаг — его нужно обводить, а не бить */
+  G.toxicIn -= dt;
+  if(TOXIC.enabled && G.toxicIn<=0 && !calm){
+    G.toxicIn = TOXIC.minGap + Math.random()*TOXIC.randGap;
+    const tv=DIFF.speed0*(1+DIFF.speedK*Math.log1p(p/DIFF.speedEase))*TOXIC.speedK;
+    G.blobs.push({toxic:true, x:.1+Math.random()*.8, y:-0.09,
+      r:TOXIC.r*(0.9+Math.random()*0.2), vy:tv, vx:(Math.random()-.5)*0.00025,
+      vTerm:tv, a:Math.random()*6.28, inside:false, lock:0, flash:0});
+  }
+
+  /* редкое появление знака клиники */
+  G.superIn -= dt;
+  if(G.superIn<=0 && p>SUPER.gate && !calm && !G.blobs.some(b=>b.superb)){
+    G.superIn = SUPER.everyMin + Math.random()*SUPER.everyRand;
+    G.blobs.push({superb:true, fx:pickWeighted(SUPER_FX),
+      x:.15+Math.random()*.7, y:-0.10, r:SUPER.r,
+      vy:SUPER.fall, vx:(Math.random()-.5)*0.00012, vTerm:SUPER.fall, a:0,
+      hits:SUPER.hits, hits0:SUPER.hits, inside:false, lock:0, flash:0});
+  }
+
+  if(G.shock){ G.shock.t+=dt; if(G.shock.t>620) G.shock=null; }
+  if(G.flashScreen>0) G.flashScreen-=dt;
+  if(G.shake>0) G.shake=Math.max(0, G.shake-dt*0.05);
+
+  /* ритм: плотность и состав потока колеблются, но игроку это не
+     называется никак */
+  if(!calm) stepWave(dt);
+
+  /* серия тает без попаданий — нельзя отсидеться на множителе */
+  if(G.combo>0){
+    G.comboT-=dt;
+    /* множитель тускнеет по мере истечения серии — видно, что пора бить */
+    elCombo.style.opacity =
+      Math.max(.3, Math.min(1, G.comboT/COMBO_HOLD)).toFixed(2);
+    if(G.comboT<=0){ G.combo=0; G.mult=1; gCombo(); }
+  }
+
+  for(let i=G.pops.length-1;i>=0;i--){
+    const q=G.pops[i];
+    q.y -= dt*0.00007; q.life-=dt;
+    if(q.life<=0) G.pops.splice(i,1);
+  }
+
+  const burR = (G.wide>0 ? BUR_R*2 : BUR_R);
+
+  for(let i=G.blobs.length-1;i>=0;i--){
+    const b=G.blobs[i];
+    /* массив могли пересобрать внутри этого же цикла (зачистка экрана) */
+    if(!b) continue;
+
+    /* гравитация: отскочивший осколок сначала летит вверх, потом падает */
+    if(b.vy < b.vTerm){
+      b.vy = Math.min(b.vTerm, b.vy + DIFF.grav*mdt);
+    }
+    b.y += b.vy*mdt;
+    b.x += b.vx*mdt;
+    if(b.sw) b.x += Math.sin(G.t*b.sw.f + b.sw.p) * b.sw.a * mdt;
+    b.vx -= b.vx*0.0009*mdt;                    /* боковой снос затухает */
+    b.a  += mdt*0.004;
+    if(b.x<.05){ b.x=.05; b.vx=Math.abs(b.vx); }
+    if(b.x>.95){ b.x=.95; b.vx=-Math.abs(b.vx); }
+
+    const dx=(b.x-G.px)*W, dy=(b.y-G.py)*H;
+    const tr = b.r + burR;
+    const touching = dx*dx+dy*dy < tr*tr;
+
+    if(touching && b.bonus){
+      G.blobs.splice(i,1); applyBonus(b.bonus, b.x, b.y); continue;
+    }
+    if(touching && b.toxic){                    /* задел — половина сердца */
+      G.blobs.splice(i,1);
+      G.combo=0; G.mult=1; gCombo();
+      G.lives=Math.max(0, G.lives-TOXIC.cost); gHearts();
+      G.flashScreen=180;
+      for(let k=0;k<18;k++) G.burst.push({x:b.x,y:b.y,col:TOXIC.glow,
+        vx:(Math.random()-.5)*1.3, vy:(Math.random()-.5)*1.3, life:1});
+      if(G.lives<=0) gEnd();
+      continue;
+    }
+    if(b.toxic){                                /* до зуба долетает безвредно */
+      if(b.y>0.92){ G.blobs.splice(i,1); }
+      continue;
+    }
+
+    /* Касание засчитывается в момент ВХОДА бора в очаг.
+       Чтобы ударить снова, бор нужно вывести и завести обратно. */
+    /* Считаем по mdt, а не по dt: физика под анестезией замедляется, и
+       таймеры должны замедляться вместе с ней. Иначе золотой очаг успевал
+       исчезнуть, не долетев до середины экрана. */
+    if(b.lock>0)  b.lock-=mdt;
+    if(b.born>0)  b.born-=mdt;
+    if(b.flash>0) b.flash-=dt;
+    const entered = touching && !b.inside && b.lock<=0;
+    b.inside = touching;
+
+    if(entered){
+      /* турбина сносит обычный очаг с одного касания;
+         знак клиники и супер-кариес — никогда, их бьют честно */
+      /* турбина сносит обычный очаг с одного касания; знак клиники,
+         супер-кариес и тяжёлый очаг — никогда, их бьют честно */
+      b.hits -= (G.turbo>0 && !b.superb && !b.boss && !b.heavy ? b.hits : 1);
+      if(b.hits<=0){
+        if(b.superb)     superActivate(b,i);
+        else if(b.boss)  bossDown(b,i);
+        else if(b.heavy) heavyDown(b,i);
+        else             kill(b,i);
+        continue;
+      }
+      b.lock=HIT_LOCK; b.flash=170;
+      const col = b.superb ? (SUPER_FX[b.fx]||SUPER_FX.burs).col
+                : b.boss  ? BOSS.col2
+                : b.heavy ? HEAVY.col2
+                : (KINDS[b.kind]||KINDS.small).col;
+      for(let k=0;k<6;k++) G.burst.push({x:b.x,y:b.y,col,
+        vx:(Math.random()-.5)*.7, vy:(Math.random()-.5)*.7, life:.8});
+      if(b.boss){ bossSpit(b); G.shake=Math.max(G.shake,5); G.freeze=35; }
+      if(b.heavy){ heavySpit(b); G.shake=Math.max(G.shake,3); G.freeze=22; }
+    }
+
+    if(b.ttl!=null){                            /* золотой уходит сам */
+      b.ttl-=mdt;                          /* и таймер золотого тоже */
+      if(b.ttl<=0){
+        G.blobs.splice(i,1);
+        for(let k=0;k<8;k++) G.burst.push({x:b.x,y:b.y,col:GOLD.glow,
+          vx:(Math.random()-.5)*.8, vy:(Math.random()-.5)*.8, life:.7});
+        continue;
+      }
+    }
+
+    if(b.y > 0.86 && b.vy>0){
+      G.blobs.splice(i,1);
+      if(b.bonus || b.superb || b.gold) continue;  /* не добили — просто ушёл */
+      if(b.boss) G.boss=null;
+      G.combo=0; G.mult=1; gCombo();
+      if(G.armor){                              /* броня принимает удар на себя */
+        G.armor=false; gArmor();
+        G.flashScreen=200;
+        for(let k=0;k<14;k++) G.burst.push({x:b.x,y:.86,col:SUPER_FX.armor.col,
+          vx:(Math.random()-.5)*1, vy:-Math.random()*.7, life:1});
+      } else {
+        G.lives=Math.max(0, G.lives-1); gHearts();
+        G.shake=14; G.freeze=70;
+        for(let k=0;k<7;k++) G.burst.push({x:b.x,y:.87,col:'#8A6A4F',
+          vx:(Math.random()-.5)*.6, vy:-Math.random()*.5, life:1});
+        if(G.lives<=0) gEnd();
+      }
+    }
+  }
+
+  for(let i=G.burst.length-1;i>=0;i--){
+    const q=G.burst[i];
+    q.x+=q.vx*dt*0.0006; q.y+=q.vy*dt*0.0006; q.life-=dt*0.0025;
+    if(q.life<=0) G.burst.splice(i,1);
+  }
+  if(G.burst.length>500) G.burst.splice(0, G.burst.length-500);
+}
+
+/* Разрушение: крупный распадается на два калибра поменьше,
+   осколки отлетают вверх-в стороны и только потом продолжают падать. */
+function split(b){
+  const K=KINDS[b.kind];
+  if(!K || !K.split) return;
+  if(G.blobs.length>200) return;             /* тот же предохранитель */
+  const [child,n]=K.split;
+  for(let i=0;i<n;i++){
+    const dir = i===0 ? -1 : 1;
+    const c = makeBlob(child,
+      Math.max(.05,Math.min(.95, b.x + dir*0.035)),
+      b.y - 0.012,
+      -0.00016 - Math.random()*0.00009,          /* отскок вверх */
+      dir*(0.00026 + Math.random()*0.00022));
+    c.fragment=true;                            /* поймать в полёте — вдвое дороже */
+    grace(c, SPAWN_GRACE.split);
+    G.blobs.push(c);
+  }
+}
+
+function kill(b,i,depth){
+  const K=KINDS[b.kind];
+  if(!K){ G.blobs.splice(i,1); return; }   /* не обычный очаг — просто убираем */
+  depth = depth||0;
+  G.blobs.splice(i,1);
+  G.combo++; G.comboT=COMBO_HOLD;
+  G.mult = Math.min(4, 1+Math.floor(G.combo/6));
+  gCombo();
+
+  const air = b.fragment && b.vy<0;        /* сбит, пока летел вверх */
+  const base = b.gold ? GOLD.pts
+             : K.pts*(b.hunter?HUNTER.bonusPts:1)*(air?AIR_BONUS:1);
+  const pts = Math.round(base*G.mult*(G.dbl>0?2:1));
+  G.score += pts;
+  $('#gScore').textContent=G.score;
+  addCharge(b.gold ? 45 : K.pts);
+
+  const col = b.gold ? GOLD.col : K.col;
+  pop(b.x, b.y,
+      (b.gold ? 'ЗОЛОТО +' : air ? 'В ВОЗДУХЕ +' : '+')+pts+(G.mult>1?' ×'+G.mult:''),
+      col);
+
+  /* стоп-кадр и тряска на крупных — удар должен чувствоваться */
+  if(K.split){ G.freeze = b.kind==='large' ? 60 : 40; G.shake = Math.max(G.shake, b.kind==='large'?7:4); }
+  if(b.gold){ G.freeze=Math.max(G.freeze,50); G.shake=Math.max(G.shake,6); }
+
+  const n = Math.round((b.gold?18:8) + b.r*0.35);
+  for(let k=0;k<n;k++) G.burst.push({x:b.x,y:b.y,col:b.gold?GOLD.glow:K.col,
+    vx:(Math.random()-.5)*.9, vy:(Math.random()-.5)*.9, life:1});
+  split(b);
+
+  if(depth===0) chain(b);
+}
+
+/* Цепь на множителе ×3 и выше: удар перекидывается на соседей.
+   depth не даёт разряду уходить в бесконечную рекурсию. */
+function chain(src){
+  if(G.mult < CHAIN.fromMult) return;
+  let n=0;
+  for(let j=G.blobs.length-1; j>=0 && n<CHAIN.max; j--){
+    const o=G.blobs[j];
+    if(!o || !o.kind || o.gold || o.toxic || o.bonus || o.superb || o.boss) continue;
+    /* Новорождённый неуязвим и для разряда: неуязвимость объявлена
+       в одном месте, соблюдаться должна везде. */
+    if(o.born>0 || o.lock>0) continue;
+    const cx2=(o.x-src.x)*W, cy2=(o.y-src.y)*H;
+    if(cx2*cx2+cy2*cy2 > CHAIN.r*CHAIN.r) continue;
+    G.arcs.push({x1:src.x, y1:src.y, x2:o.x, y2:o.y, life:300});
+    n++;
+    o.hits--;
+    o.flash=170;
+    if(o.hits<=0) kill(o, j, 1);
+  }
+}
+
+/* ---- знак клиники добит: срабатывает выпавший ему эффект ---- */
+function superActivate(b,i){
+  G.blobs.splice(i,1);
+  const fx=b.fx||'burs';
+  G.shock={x:b.x, y:b.y, t:0, col:SUPER_FX[fx].col};
+  G.flashScreen=280;
+
+  if(fx==='wipe'){
+    const gained=wipeBoard(1.5, 150);
+  }
+  else if(fx==='armor'){
+    G.armor=true; gArmor();
+    G.score+=60; $('#gScore').textContent=G.score;
+  }
+  else{                                   /* десять боров по кругу */
+    for(let k=0;k<BURS.n;k++){
+      const a=k/BURS.n*6.283 + Math.random()*0.15;
+      G.burs.push({x:b.x, y:b.y, vx:Math.cos(a)*BURS.speed,
+                   vy:Math.sin(a)*BURS.speed, life:BURS.life, a});
+    }
+  }
+  addCharge(60);
+}
+
+/* Сносит все обычные очаги без каскада. Возвращает начисленные очки. */
+function wipeBoard(k, base){
+  let pts=0, n=0;
+  G.blobs.forEach(o=>{
+    /* Тяжёлый очаг зачистка не берёт — как и супер-кариеса. Он на то и
+       тяжёлый: снести его можно только руками. */
+    if(o.bonus||o.superb||o.boss||o.toxic||o.heavy) return;
+    const K=KINDS[o.kind]||KINDS.small;
+    pts+=K.pts; n++;
+    for(let j=0;j<10;j++) G.burst.push({x:o.x,y:o.y,col:K.col,
+      vx:(Math.random()-.5)*1.3, vy:(Math.random()-.5)*1.3, life:1});
+  });
+  G.blobs = G.blobs.filter(o=>o.bonus||o.superb||o.boss||o.toxic||o.heavy);
+  G.combo += n;
+  G.mult = Math.min(4, 1+Math.floor(G.combo/6));
+  gCombo();
+  const gained = Math.round((base + pts*k) * G.mult * (G.dbl>0?2:1));
+  G.score += gained;
+  $('#gScore').textContent=G.score;
+  return gained;
+}
+
+/* ---- супер-кариес ---- */
+/* Тяжёлый очаг. Обычный по устройству блоб, но с флагом heavy: падает
+   медленнее, держит десять касаний и с каждого отбрасывает мелочь. */
+function spawnHeavy(p){
+  const v=DIFF.speed0*(1+DIFF.speedK*Math.log1p(p/DIFF.speedEase))*HEAVY.speedK;
+  G.blobs.push({heavy:true, kind:null,
+    x:.12+Math.random()*.76, y:-0.12, r:HEAVY.r,
+    vy:v, vx:(Math.random()-.5)*0.00022, vTerm:v, a:Math.random()*6.28,
+    hits:HEAVY.hits, hits0:HEAVY.hits, inside:false, lock:0, flash:0});
+}
+/* С каждого касания в стороны уходит 1–2 мелких очага. */
+function heavySpit(b){
+  if(G.blobs.length>DIFF.maxBlobs+24) return;      /* предохранитель от завала */
+  const n=HEAVY.spitMin+Math.floor(Math.random()*(HEAVY.spitMax-HEAVY.spitMin+1));
+  const kinds=['tiny','tiny','small'];
+  for(let i=0;i<n;i++){
+    const a=-Math.PI*(0.18+Math.random()*0.64);
+    const c=makeBlob(kinds[(Math.random()*kinds.length)|0],
+      Math.max(.05,Math.min(.95, b.x+Math.cos(a)*0.04)),
+      b.y+Math.sin(a)*0.02,
+      Math.sin(a)*0.00026, Math.cos(a)*0.00036);
+    grace(c, SPAWN_GRACE.heavy);
+    G.blobs.push(c);
+  }
+}
+/* Добили: очки, отдача и заметный разлёт — но без финала и сертификата. */
+function heavyDown(b,i){
+  G.blobs.splice(i,1);
+  G.combo++; G.comboT=COMBO_HOLD;
+  G.mult=Math.min(4, 1+Math.floor(G.combo/6));
+  gCombo();
+  const pts=Math.round(HEAVY.pts*G.mult*(G.dbl>0?2:1));
+  G.score+=pts; $('#gScore').textContent=G.score;
+  addCharge(HEAVY.pts*0.5);
+  pop(b.x, b.y, '+'+pts+(G.mult>1?' ×'+G.mult:''), HEAVY.col2);
+  G.freeze=80; G.shake=Math.max(G.shake,11);
+  for(let k=0;k<34;k++) G.burst.push({x:b.x,y:b.y,col:k%3?HEAVY.col2:HEAVY.col,
+    vx:(Math.random()-.5)*1.3, vy:(Math.random()-.5)*1.3, life:1});
+}
+
+function spawnBoss(){
+  const b={boss:true, x:.5, y:-0.14, r:BOSS.r,
+    vy:BOSS.fall, vx:0, vTerm:BOSS.fall, a:0,
+    hits:BOSS.hits, hits0:BOSS.hits, inside:false, lock:0, flash:0};
+  G.boss=b; G.blobs.push(b);
+}
+/* Каждое попадание выплёвывает 1–3 очага разного калибра в стороны. */
+function bossSpit(b){
+  if(G.blobs.length>110) return;             /* предохранитель от завала экрана */
+  const n=BOSS.spawnMin+Math.floor(Math.random()*(BOSS.spawnMax-BOSS.spawnMin+1));
+  const kinds=['tiny','small','small','medium'];
+  for(let i=0;i<n;i++){
+    const a=-Math.PI*(0.15+Math.random()*0.7);       /* вверх и в стороны */
+    const k=kinds[(Math.random()*kinds.length)|0];
+    const c=makeBlob(k,
+      Math.max(.05,Math.min(.95, b.x+Math.cos(a)*0.05)),
+      b.y+Math.sin(a)*0.03,
+      Math.sin(a)*0.00030,
+      Math.cos(a)*0.00042);
+    grace(c, SPAWN_GRACE.boss);
+    G.blobs.push(c);
+  }
+}
+function bossDown(b,i){
+  G.blobs.splice(i,1); G.boss=null;
+  const swept=wipeBoard(2, 600);
+  G.lives=Math.min(3,G.lives+1); gHearts();
+  startFinale(b.x, b.y, swept);
+}
+
+/* ---------------------------------------------------------------------
+   ФИНАЛ: взрыв, волны и блеск по всему экрану.
+   Сертификат показываем только когда всё отгремит.
+   --------------------------------------------------------------------- */
+function startFinale(x,y,swept){
+  G.finale={t:0, x, y, swept};
+  prepareCert();                     /* готовим карточку заранее, см. prepareCert */
+  G.freeze=0; G.shake=24; G.flashScreen=520;
+  G.chunks=[];
+
+  /* Босс раскалывается на куски: тяжёлые обломки с вращением,
+     а не абстрактные частицы. */
+  for(let k=0;k<26;k++){
+    const a=Math.random()*6.283, v=0.25+Math.random()*1.1;
+    G.chunks.push({x, y,
+      vx:Math.cos(a)*v, vy:Math.sin(a)*v - 0.25,
+      r:6+Math.random()*16, rot:Math.random()*6.283,
+      spin:(Math.random()-.5)*0.02, life:1,
+      col:k%3 ? BOSS.col2 : BOSS.col});
+  }
+  for(let k=0;k<30;k++){
+    const a=Math.random()*6.283, v=0.3+Math.random()*1.4;
+    G.burst.push({x, y, col:k%2?BOSS.col2:BOSS.col,
+      vx:Math.cos(a)*v, vy:Math.sin(a)*v, life:1});
+  }
+}
+
+function stepFinale(dt){
+  const f=G.finale;
+  f.t+=dt;
+  if(G.shake>0) G.shake=Math.max(0, G.shake-dt*0.05);
+  if(G.flashScreen>0) G.flashScreen-=dt;
+
+  for(let i=G.chunks.length-1;i>=0;i--){
+    const c=G.chunks[i];
+    c.x+=c.vx*dt*0.0006; c.y+=c.vy*dt*0.0006;
+    c.vy+=0.0000022*dt*1000/60*0.6;
+    c.vx*=0.994; c.rot+=c.spin*dt;
+    c.life-=dt*0.0011;
+    if(c.life<=0 || c.y>1.25) G.chunks.splice(i,1);
+  }
+  for(let i=G.burst.length-1;i>=0;i--){
+    const q=G.burst[i];
+    q.x+=q.vx*dt*0.0006; q.y+=q.vy*dt*0.0006; q.life-=dt*0.0016;
+    if(q.life<=0) G.burst.splice(i,1);
+  }
+
+  if(f.t>=FINALE.ms){
+    const s=f.swept; G.finale=null; G.chunks=[];
+    showReward(s);
+  }
+}
+
+const clamp01=v=>v<0?0:v>1?1:v;
+const seg=(t,a,b)=>clamp01((t-a)/(b-a));
+const easeOut=v=>1-Math.pow(1-v,3);
+
+
+/* =====================================================================
+   СЕРТИФИКАТ ЗА ПОБЕДУ НАД СУПЕР-КАРИЕСОМ
+   Код привязан к дате и времени выдачи, срок — месяц.
+   ===================================================================== */
+function two(n){ return String(n).padStart(2,'0'); }
+function makeCert(){
+  const d=new Date();
+  const exp=new Date(d); exp.setMonth(exp.getMonth()+CERT.months);
+  const rnd=Math.random().toString(36).slice(2,5).toUpperCase();
+  /* Услуга разыгрывается на месте: выпадает одна из CERT.options.
+     Сумма попадает и в код — администратору по коду сразу видно номинал,
+     не открывая картинку. */
+  const opt=CERT.options[(Math.random()*CERT.options.length)|0];
+  const code='АУ-'+opt.sum.replace(/\D/g,'')+'-'+
+             String(d.getFullYear()).slice(2)+two(d.getMonth()+1)+two(d.getDate())
+             +'-'+two(d.getHours())+two(d.getMinutes())+'-'+rnd;
+  return {code, opt,
+    issued: two(d.getDate())+'.'+two(d.getMonth()+1)+'.'+d.getFullYear()+
+            ' в '+two(d.getHours())+':'+two(d.getMinutes()),
+    expires: two(exp.getDate())+'.'+two(exp.getMonth()+1)+'.'+exp.getFullYear()};
+}
+
+function drawCert(c){
+  const w=1080, h=1350, cv=document.createElement('canvas');
+  cv.width=w; cv.height=h;
+  const x=cv.getContext('2d');
+  const S='Prata,Georgia,serif', N='"Golos Text",system-ui,sans-serif';
+  const NAVY='#1B3D96', INK='#14161A', MUTE='#5F646D';
+
+  x.fillStyle='#fff'; x.fillRect(0,0,w,h);
+  x.fillStyle='#F5F6F8'; x.fillRect(0,0,w,300);
+  x.strokeStyle='rgba(20,22,26,.14)'; x.lineWidth=2;
+  x.strokeRect(40,40,w-80,h-80);
+
+  /* знак клиники */
+  x.fillStyle=NAVY;
+  toothPath(x, w/2, 128, 42); x.fill();
+  x.strokeStyle=NAVY; x.lineWidth=7; x.lineCap='round';
+  x.beginPath(); x.arc(w/2, 150, 66, 0.5, 2.64); x.stroke();
+
+  x.textAlign='center';
+  x.fillStyle=INK; x.font='31px '+S;
+  x.fillText(CERT.clinic, w/2, 268);
+
+  x.fillStyle=MUTE; x.font='500 22px '+N;
+  x.fillText('ПОДАРОЧНЫЙ СЕРТИФИКАТ', w/2, 396);
+
+  /* Выпавшая услуга — одна, поэтому сумма занимает всю ширину.
+     Какая именно, решил розыгрыш в makeCert. */
+  x.fillStyle=NAVY; x.font='150px '+S;
+  x.fillText(c.opt.sum, w/2, 540);
+
+  x.fillStyle=INK; x.font='30px '+N;
+  x.fillText(c.opt.dat, w/2, 604);
+
+  x.fillStyle=MUTE; x.font='23px '+N;
+  x.fillText('за победу над супер-кариесом в игре на сайте', w/2, 656);
+
+  /* код */
+  x.fillStyle='#F5F6F8'; x.fillRect(90, 706, w-180, 168);
+  x.strokeStyle=NAVY; x.lineWidth=3;
+  x.beginPath(); x.moveTo(90,706); x.lineTo(90,874); x.stroke();
+  x.fillStyle=MUTE; x.font='500 19px '+N; x.textAlign='left';
+  x.fillText('КОД СЕРТИФИКАТА', 130, 756);
+  x.fillStyle=INK; x.font='600 40px '+N;
+  x.fillText(c.code, 130, 812);
+  x.fillStyle=MUTE; x.font='21px '+N;
+  x.fillText('Выдан '+c.issued+' · действует до '+c.expires, 130, 852);
+
+  /* мелким шрифтом — условия */
+  x.fillStyle=MUTE; x.font='19px '+N;
+  const words=CERT.terms.split(' ');
+  let line='', yy=940;
+  words.forEach(word=>{
+    const t=line+word+' ';
+    if(x.measureText(t).width > w-260){ x.fillText(line,130,yy); line=word+' '; yy+=30; }
+    else line=t;
+  });
+  x.fillText(line,130,yy);
+
+  /* подвал */
+  x.strokeStyle='rgba(20,22,26,.14)'; x.lineWidth=1;
+  x.beginPath(); x.moveTo(130,h-190); x.lineTo(w-130,h-190); x.stroke();
+  x.fillStyle=INK; x.font='23px '+N;
+  x.fillText(CERT.addr, 130, h-146);
+  x.fillText(CERT.tel, 130, h-108);
+  x.textAlign='right';
+  x.fillStyle=NAVY; x.font='23px '+N;
+  x.fillText('Предъявите этот код администратору', w-130, h-108);
+  x.textAlign='left';
+  return cv;
+}
+
+function certBlob(cv){
+  return new Promise(res=>cv.toBlob(b=>res(b), 'image/png'));
+}
+function certMessage(c){
+  return 'Здравствуйте! В игре на вашем сайте мне выпал '+
+    /* Без предлога перед суммой: dat уже начинается с «на», иначе
+       получается «сертификат на 1000 ₽ на профгигиену». */
+    'сертификат '+c.opt.sum+' '+c.opt.dat+'.\nКод: '+c.code+
+    '\nДействует до '+c.expires+'.\nХочу записаться.';
+}
+
+/* Сертификат 1080×1350 готовим ЗАРАНЕЕ, пока идёт финал: рисование канваса
+   и кодирование PNG — тяжёлые синхронные операции, и раньше они подвешивали
+   кадр ровно перед появлением карточки. toBlob асинхронный, в отличие от
+   toDataURL, и не держит главный поток. */
+function prepareCert(){
+  if(G.certPending) return;
+  G.certPending = true;
+  /* Таймаут запоминаем: без этого закрытие игры сразу после победы всё
+     равно рисовало канвас 1080×1350 и создавало URL, который уже некому
+     отозвать. */
+  G.certTimer = setTimeout(()=>{
+    G.certTimer = 0;
+    G.cert = makeCert();
+    G.certCanvas = drawCert(G.cert);
+    if(G.certUrl){ URL.revokeObjectURL(G.certUrl); G.certUrl = null; }
+    G.certCanvas.toBlob(bl=>{ G.certUrl = URL.createObjectURL(bl); }, 'image/png');
+  }, 40);
+}
+/* Готовность сертификата снимается после показа, а не в конце партии:
+   иначе второй супер-кариес выдавал копию первого — тот же код, ту же
+   дату и ту же услугу. Каждая победа должна давать свой сертификат. */
+function certDone(){
+  G.certPending = false;
+  if(G.certTimer){ clearTimeout(G.certTimer); G.certTimer = 0; }
+}
+
+function showReward(swept){
+  if(!G.cert){                       /* подстраховка, если подготовка не успела */
+    G.cert = makeCert();
+    G.certCanvas = drawCert(G.cert);
+  }
+  $('#rwImg').src = G.certUrl || G.certCanvas.toDataURL('image/png');
+  certDone();
+  /* Что именно выпало — словами, до картинки: сумма на сертификате мелкая,
+     а человек хочет понять результат сразу. */
+  $('#rwWon').innerHTML = 'Вам выпал сертификат<b>'+
+    G.cert.opt.sum+' '+G.cert.opt.dat+'</b>';
+  $('#rwTerms').textContent = CERT.terms + ' Организатор — ООО «Академия улыбки». Не является публичной офертой.';
+  $('#rwCode').textContent = G.cert.code;
+  $('#rwExp').textContent = G.cert.expires;
+  $('#rwPts').textContent = swept;
+  $('#gReward').hidden = false;
+  setPause(true);
+}
+
+async function certDownload(){
+  const blob = await certBlob(G.certCanvas);
+  const name = 'sertifikat-'+G.cert.code.replace('АУ','AU')+'.png';
+  /* В предпросмотре на claude.ai обычная ссылка на скачивание заблокирована,
+     там файл отдаётся через платформенный слой. На сайте клиники — обычным путём. */
+  try{
+    const dl = (window.claude && claude.use) ? await claude.use('downloads') : null;
+    if(dl){
+      await dl.save({filename:name, data:blob});
+      $('#rwNote').textContent='Сертификат сохранён.';
+      return;
+    }
+  }catch(err){
+    if(err && err.code==='declined') return;
+  }
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
+  $('#rwNote').textContent='Сертификат сохранён. Покажите его администратору или пришлите в WhatsApp.';
+}
+
+/* Отправка картинки в мессенджер возможна только через системный «Поделиться»
+   (мобильные браузеры). На десктопе открываем WhatsApp с готовым текстом,
+   а картинку пользователь прикладывает сам. */
+async function certSend(){
+  const blob = await certBlob(G.certCanvas);
+  const file = new File([blob], 'sertifikat-'+G.cert.code+'.png', {type:'image/png'});
+  const text = certMessage(G.cert);
+  if(navigator.canShare && navigator.canShare({files:[file]})){
+    try{
+      await navigator.share({files:[file], text});
+      $('#rwNote').textContent='Сертификат отправлен — ответим в WhatsApp и подберём время.';
+      return;
+    }catch(err){ if(err && err.name==='AbortError') return; }
+  }
+  window.open('https://wa.me/'+CERT.phone+'?text='+encodeURIComponent(text),'_blank','noopener');
+  $('#rwNote').textContent='WhatsApp открыт с готовым сообщением. Картинку сохраните кнопкой рядом и приложите к чату.';
+}
+
+function rewardClose(){
+  $('#gReward').hidden=true;
+  $('#rwNote').textContent='';
+  setPause(false);
+}
+
+function applyBonus(kind,x,y){
+  if(kind==='fluor'){
+    if(G.lives<3){ G.lives=Math.min(3, G.lives+1); gHearts(); } else { G.score+=80; $('#gScore').textContent=G.score; }
+  }
+  if(kind==='anest')   G.slow=3600;
+  if(kind==='airflow') G.wide=5200;
+  if(kind==='turbo')   G.turbo=5600;
+  if(kind==='x2')      G.dbl=8000;
+  if(kind==='ultra'){                            /* дробит всё крупное разом */
+    /* Только обычные очаги: у знака клиники, босса и токсичного нет b.kind,
+       и обращение к KINDS[undefined] раньше роняло весь игровой цикл. */
+    G.blobs.slice().forEach(b=>{
+      if(!b.kind || !KINDS[b.kind] || !KINDS[b.kind].split) return;
+      const i=G.blobs.indexOf(b); if(i>-1) kill(b,i);
+    });
+  }
+  for(let k=0;k<16;k++) G.burst.push({x,y,col:BONUS[kind].col,
+    vx:(Math.random()-.5)*1.1, vy:(Math.random()-.5)*1.1, life:1});
+}
+
+function gEnd(){
+  G.over=true; setPause(false);
+  if(G.score>G.best){ G.best=G.score; try{localStorage.setItem('au-tour-best',G.best);}catch(_){} }
+  $('#gFinal').textContent=G.score;
+  $('#gBest').textContent=G.best;
+  $('#gOver').hidden=false;
+}
+
+/* Силуэт зуба — один на всех: и «пациент» внизу, и знак клиники. */
+function toothPath(c, cx, cy, s){
+  c.beginPath();
+  c.moveTo(cx-s, cy-s*0.5);
+  c.bezierCurveTo(cx-s*1.05, cy-s*1.5, cx+s*1.05, cy-s*1.5, cx+s, cy-s*0.5);
+  c.bezierCurveTo(cx+s*0.9, cy+s*0.6, cx+s*0.35, cy+s*0.9, cx+s*0.2, cy+s*0.2);
+  c.bezierCurveTo(cx, cy-s*0.1, cx, cy-s*0.1, cx-s*0.2, cy+s*0.2);
+  c.bezierCurveTo(cx-s*0.35, cy+s*0.9, cx-s*0.9, cy+s*0.6, cx-s, cy-s*0.5);
+  c.closePath();
+}
+
+function gDraw(){
+  ctx.clearRect(0,0,W,H);
+
+  /* тряска экрана */
+  ctx.save();
+  if(G.shake>0.3){
+    ctx.translate((Math.random()-.5)*G.shake, (Math.random()-.5)*G.shake);
+  }
+
+  /* зона опасности: полоса, за которой очаг вот-вот достанет зуб */
+  const near = G.blobs.some(o=>o.kind && o.y>DANGER_Y);
+  if(near){
+    const beat=0.5+0.5*Math.sin(G.t*0.012);
+    if(!G.dangerGrad){
+      G.dangerGrad=ctx.createLinearGradient(0,H*DANGER_Y,0,H);
+      G.dangerGrad.addColorStop(0,'rgba(179,38,30,0)');
+      G.dangerGrad.addColorStop(1,'rgba(179,38,30,1)');
+    }
+    ctx.globalAlpha=0.10+0.10*beat;
+    ctx.fillStyle=G.dangerGrad; ctx.fillRect(0,H*DANGER_Y,W,H*(1-DANGER_Y));
+    ctx.globalAlpha=1;
+    ctx.strokeStyle='rgba(179,38,30,'+(0.22+0.2*beat)+')';
+    ctx.lineWidth=1; ctx.setLineDash([7,7]);
+    ctx.beginPath(); ctx.moveTo(0,H*DANGER_Y); ctx.lineTo(W,H*DANGER_Y); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  /* зуб-«пациент» внизу; в финале он залечивается и блестит */
+  const fin=G.finale;
+  const heal = fin ? seg(fin.t, FINALE.heal[0], FINALE.heal[1]) : 0;
+  /* свечение и увеличение нарастают и ДЕРЖАТСЯ до конца — иначе середина
+     финала оказывалась пустой */
+  const shine = fin ? easeOut(seg(fin.t, FINALE.heal[0], FINALE.heal[0]+450)) : 0;
+  const pop = Math.sin(seg(fin?fin.t:0, FINALE.heal[0], FINALE.heal[1])*Math.PI);
+  const tx=W/2, ty=H*0.92, s=Math.min(W,H)*0.09*(1+0.13*shine+0.05*pop);
+  ctx.save();
+  ctx.fillStyle='#fff';
+  if(shine>0){
+    /* В финале зуб светится и растёт — здесь размытие оправдано и платится
+       один раз за победу. */
+    ctx.shadowColor='rgba(27,61,150,'+(0.18+0.5*shine).toFixed(3)+')';
+    ctx.shadowBlur=18+62*shine;
+    toothPath(ctx, tx, ty, s);
+    ctx.fill();
+  } else {
+    /* Обычное состояние: тень неподвижна, поэтому она нарисована заранее
+       в закадровый холст. Раньше shadowBlur считался каждый кадр — на
+       телефоне это съедало заметную долю бюджета кадра. */
+    const sh=toothShadow(s), side=G.toothShSide;
+    ctx.drawImage(sh, tx-side/2, ty-side/2+4, side, side);
+    toothPath(ctx, tx, ty, s);
+    ctx.fill();
+  }
+  ctx.restore();
+  /* повреждения по числу потерянных жизней — в финале затягиваются */
+  ctx.fillStyle='rgba(60,40,30,'+(0.5*(1-heal)).toFixed(3)+')';
+  const dmg=3-G.lives;
+  for(let i=0;i<Math.ceil(dmg);i++){
+    const part=Math.min(1, dmg-i);
+    ctx.beginPath();
+    ctx.arc(tx+(i-1)*s*0.45, ty-s*0.45, s*0.17*Math.sqrt(part)*(1-heal), 0, 6.29); ctx.fill();
+  }
+  /* один диагональный блик по эмали — вместо россыпи блёсток */
+  if(fin){
+    const g=seg(fin.t, FINALE.gleam[0], FINALE.gleam[1]);
+    if(g>0 && g<1){
+      ctx.save();
+      toothPath(ctx, tx, ty, s); ctx.clip();
+      const span=s*3.4, px=tx-span/2+span*g;
+      const lg=ctx.createLinearGradient(px-s*0.55, ty-s*1.3, px+s*0.55, ty+s*1.0);
+      lg.addColorStop(0,'rgba(255,255,255,0)');
+      lg.addColorStop(0.5,'rgba(255,255,255,'+(0.92*Math.sin(g*Math.PI)).toFixed(3)+')');
+      lg.addColorStop(1,'rgba(255,255,255,0)');
+      ctx.fillStyle=lg;
+      ctx.fillRect(tx-s*1.7, ty-s*1.9, s*3.4, s*3.4);
+      ctx.restore();
+    }
+  }
+  /* броня */
+  if(G.armor){
+    ctx.save();
+    ctx.strokeStyle=SUPER_FX.armor.col;
+    ctx.lineWidth=3; ctx.lineCap='round';
+    ctx.globalAlpha=.75+Math.sin(G.t*0.004)*0.2;
+    ctx.beginPath(); ctx.arc(tx, ty-s*0.25, s*1.5, Math.PI*1.08, Math.PI*1.92); ctx.stroke();
+    ctx.globalAlpha=.28;
+    ctx.beginPath(); ctx.arc(tx, ty-s*0.25, s*1.5, Math.PI*1.08, Math.PI*1.92); ctx.lineWidth=10; ctx.stroke();
+    ctx.restore();
+  }
+
+  /* враги и бонусы */
+  G.blobs.forEach(b=>{
+    const x=b.x*W, y=b.y*H, r=b.r;
+    ctx.save();
+    ctx.translate(x + (b.flash>0?Math.sin(G.t*0.06)*3:0), y);
+    /* Появление: пока идёт пауза неуязвимости, очаг подрастает из
+       половины размера и проявляется. Без этого он выглядит обычным, и
+       промах по нему читается как сбой, а не как «ещё не созрел».
+       A0 — базовая прозрачность кадра: все места, которые внутри рисования
+       возвращают globalAlpha, возвращают его именно к ней, иначе
+       новорождённый резко проявлялся бы на полпути. */
+    const A0 = (b.born>0 && b.born0) ? 0.35+0.65*(1-b.born/b.born0) : 1;
+    if(A0<1){
+      const k=1-b.born/b.born0;
+      ctx.globalAlpha=A0;
+      ctx.scale(0.55+0.45*k, 0.55+0.45*k);
+    }
+
+    if(b.toxic){
+      const pulse=1+Math.sin(G.t*0.007)*0.09;
+      ctx.globalAlpha=.16; ctx.fillStyle=TOXIC.glow;
+      ctx.beginPath(); ctx.arc(0,0,(r+18)*pulse,0,6.29); ctx.fill();
+      ctx.globalAlpha=.3;
+      ctx.beginPath(); ctx.arc(0,0,(r+9)*pulse,0,6.29); ctx.fill();
+      ctx.globalAlpha=1;
+      ctx.rotate(Math.sin(b.a)*0.16);
+      ctx.fillStyle=TOXIC.col;
+      ctx.beginPath();
+      for(let i=0;i<12;i++){
+        const a=i/12*6.283, rr=r*(0.8+0.22*Math.sin(i*2.6+b.a*1.6));
+        i? ctx.lineTo(Math.cos(a)*rr, Math.sin(a)*rr)
+         : ctx.moveTo(Math.cos(a)*rr, Math.sin(a)*rr);
+      }
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle=TOXIC.glow;
+      ctx.beginPath(); ctx.arc(-r*.3, r*.18, r*.16, 0, 6.29); ctx.fill();
+      ctx.beginPath(); ctx.arc(r*.26, -r*.3, r*.12, 0, 6.29); ctx.fill();
+      /* сердитые глаза — читается как «не подходи» */
+      ctx.fillStyle='#14161A';
+      ctx.save(); ctx.rotate(-0.32);
+      ctx.fillRect(-r*.46,-r*.24,r*.32,r*.1); ctx.restore();
+      ctx.save(); ctx.rotate(0.32);
+      ctx.fillRect(r*.14,-r*.24,r*.32,r*.1); ctx.restore();
+      ctx.strokeStyle='#14161A'; ctx.lineWidth=2; ctx.lineCap='round';
+      ctx.beginPath(); ctx.arc(0, r*.42, r*.28, 3.5, 5.9); ctx.stroke();
+      ctx.rotate(-Math.sin(b.a)*0.16);
+      ctx.fillStyle=TOXIC.col;
+      ctx.font='600 10px "Golos Text",system-ui,sans-serif';
+      ctx.textAlign='center';
+      ctx.fillText(TOXIC.label.toUpperCase(), 0, -r-11);
+      ctx.textAlign='left';
+      ctx.restore(); return;
+    }
+
+    if(b.boss){
+      const pulse=1+Math.sin(G.t*0.004)*0.03;
+      ctx.globalAlpha=.14; ctx.fillStyle=BOSS.col2;
+      ctx.beginPath(); ctx.arc(0,0,(r+26)*pulse,0,6.29); ctx.fill();
+      ctx.globalAlpha=1;
+      ctx.rotate(Math.sin(b.a*0.6)*0.06);
+      ctx.fillStyle=BOSS.col;
+      ctx.beginPath();
+      for(let i=0;i<16;i++){
+        const a=i/16*6.283, rr=r*(0.88+0.13*Math.sin(i*1.7+b.a));
+        i? ctx.lineTo(Math.cos(a)*rr, Math.sin(a)*rr)
+         : ctx.moveTo(Math.cos(a)*rr, Math.sin(a)*rr);
+      }
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle=BOSS.col2;
+      [[-.42,-.3,.2],[.38,-.34,.16],[.1,.42,.19],[-.3,.34,.14]].forEach(o=>{
+        ctx.beginPath(); ctx.arc(r*o[0], r*o[1], r*o[2], 0, 6.29); ctx.fill();
+      });
+      ctx.fillStyle='#fff';
+      ctx.beginPath(); ctx.arc(-r*.26,-r*.1,r*.16,0,6.29); ctx.fill();
+      ctx.beginPath(); ctx.arc(r*.26,-r*.1,r*.16,0,6.29); ctx.fill();
+      ctx.fillStyle='#14161A';
+      ctx.beginPath(); ctx.arc(-r*.23,-r*.07,r*.08,0,6.29); ctx.fill();
+      ctx.beginPath(); ctx.arc(r*.29,-r*.07,r*.08,0,6.29); ctx.fill();
+      ctx.rotate(-Math.sin(b.a*0.6)*0.06);
+      /* полоса здоровья */
+      const bw=r*1.9, bh=7;
+      ctx.fillStyle='rgba(20,22,26,.14)';
+      ctx.fillRect(-bw/2, -r-20, bw, bh);
+      ctx.fillStyle=BOSS.col2;
+      ctx.fillRect(-bw/2, -r-20, bw*(b.hits/b.hits0), bh);
+      ctx.fillStyle=BOSS.col;
+      ctx.font='600 12px "Golos Text",system-ui,sans-serif';
+      ctx.textAlign='center';
+      ctx.fillText(b.hits+' / '+b.hits0, 0, -r-28);
+      ctx.textAlign='left';
+      if(b.flash>0){
+        ctx.globalAlpha=Math.min(.5,b.flash/170*.5);
+        ctx.fillStyle='#fff';
+        ctx.beginPath(); ctx.arc(0,0,r,0,6.29); ctx.fill();
+        ctx.globalAlpha=1;
+      }
+      ctx.restore(); return;
+    }
+
+    /* Тяжёлый очаг. Ни подписи, ни тревоги — только вид: тёмный, крупный,
+       с рваной коркой и точками оставшихся ударов над ним. Этого хватает,
+       чтобы понять, что с одного касания он не снесётся. */
+    if(b.heavy){
+      ctx.rotate(Math.sin(b.a)*0.10);
+      ctx.fillStyle=HEAVY.col;
+      ctx.beginPath();
+      for(let i=0;i<14;i++){
+        const a=i/14*6.283, rr=r*(0.84+0.17*Math.sin(i*2.1+b.a));
+        i? ctx.lineTo(Math.cos(a)*rr, Math.sin(a)*rr)
+         : ctx.moveTo(Math.cos(a)*rr, Math.sin(a)*rr);
+      }
+      ctx.closePath(); ctx.fill();
+      /* корка: чем меньше осталось ударов, тем больше сколов светлее */
+      ctx.fillStyle=HEAVY.col2;
+      const chips=[[-.40,-.28,.17],[.36,-.32,.14],[.08,.40,.16],[-.28,.32,.12],[.42,.18,.11]];
+      chips.forEach((o,ci)=>{
+        if(ci > (1-b.hits/b.hits0)*chips.length) return;
+        ctx.beginPath(); ctx.arc(r*o[0], r*o[1], r*o[2], 0, 6.29); ctx.fill();
+      });
+      /* Глаза как у обычных очагов, но прищуренные: сразу видно, что это
+         тот же зверь, только злее — а не камень, случайно попавший в кадр. */
+      ctx.fillStyle='#fff';
+      ctx.beginPath(); ctx.arc(-r*.25,-r*.06,r*.155,0,6.29); ctx.fill();
+      ctx.beginPath(); ctx.arc( r*.25,-r*.06,r*.155,0,6.29); ctx.fill();
+      ctx.fillStyle='#14161A';
+      ctx.beginPath(); ctx.arc(-r*.22,-r*.03,r*.075,0,6.29); ctx.fill();
+      ctx.beginPath(); ctx.arc( r*.28,-r*.03,r*.075,0,6.29); ctx.fill();
+      ctx.fillStyle=HEAVY.col;
+      ctx.save(); ctx.rotate(-0.26);
+      ctx.fillRect(-r*.44,-r*.30,r*.34,r*.10); ctx.restore();
+      ctx.save(); ctx.rotate(0.26);
+      ctx.fillRect( r*.10,-r*.30,r*.34,r*.10); ctx.restore();
+      ctx.rotate(-Math.sin(b.a)*0.10);
+      /* Точки оставшихся ударов — тот же язык, что у обычных очагов,
+         только их десять. Полосу здоровья оставляем супер-кариесу. */
+      const dots=b.hits, dr=2.6, gap=7.4;
+      const row=Math.min(dots,5), rows=Math.ceil(dots/5);
+      ctx.fillStyle=HEAVY.col2;
+      for(let d=0; d<dots; d++){
+        const ri=Math.floor(d/5), ci=d%5;
+        const n=(ri===rows-1) ? (dots-ri*5) : 5;
+        ctx.beginPath();
+        ctx.arc((ci-(n-1)/2)*gap, -r-12-ri*gap, dr, 0, 6.29);
+        ctx.fill();
+      }
+      if(b.flash>0){
+        ctx.globalAlpha=Math.min(.55,b.flash/170*.55);
+        ctx.fillStyle='#fff';
+        ctx.beginPath(); ctx.arc(0,0,r,0,6.29); ctx.fill();
+        ctx.globalAlpha=1;
+      }
+      ctx.restore(); return;
+    }
+
+    if(b.superb){
+      const FX=SUPER_FX[b.fx||'burs'];
+      const pulse=1+Math.sin(G.t*0.005)*0.05;
+
+      /* У каждого эффекта своя анимация — видно, что знак сделает,
+         ещё до того, как его добьют. */
+      ctx.strokeStyle=FX.col; ctx.fillStyle=FX.col;
+      if(b.fx==='burs'){                        /* Гигиена: боры кружат вокруг */
+        for(let i=0;i<10;i++){
+          const a=G.t*0.0016 + i/10*6.283;
+          const rr=r+20+Math.sin(G.t*0.004+i)*3;
+          ctx.globalAlpha=.75;
+          ctx.beginPath(); ctx.arc(Math.cos(a)*rr, Math.sin(a)*rr, 2.8, 0, 6.29); ctx.fill();
+        }
+      } else if(b.fx==='wipe'){                 /* Чистый рот: волны расходятся */
+        for(let i=0;i<3;i++){
+          const k=((G.t*0.0007+i/3)%1);
+          ctx.globalAlpha=(1-k)*0.5;
+          ctx.lineWidth=2;
+          ctx.beginPath(); ctx.arc(0,0,r+6+k*34,0,6.29); ctx.stroke();
+        }
+      } else {                                  /* Броня: щит обегает по кругу */
+        const a=G.t*0.0022;
+        ctx.globalAlpha=.7; ctx.lineWidth=4; ctx.lineCap='round';
+        ctx.beginPath(); ctx.arc(0,0,r+14, a, a+1.5); ctx.stroke();
+        ctx.globalAlpha=.3;
+        ctx.beginPath(); ctx.arc(0,0,r+14, a+3.14, a+3.14+1.5); ctx.stroke();
+      }
+      ctx.globalAlpha=1;
+
+      /* два ореола */
+      ctx.globalAlpha=.18; ctx.fillStyle=FX.col;
+      ctx.beginPath(); ctx.arc(0,0,(r+16)*pulse,0,6.29); ctx.fill();
+      ctx.globalAlpha=.32;
+      ctx.beginPath(); ctx.arc(0,0,(r+7)*pulse,0,6.29); ctx.fill();
+      ctx.globalAlpha=1;
+      ctx.fillStyle=FX.col;
+      ctx.beginPath(); ctx.arc(0,0,r,0,6.29); ctx.fill();
+      /* знак: зуб над улыбкой */
+      ctx.fillStyle='#fff';
+      toothPath(ctx, 0, -r*0.10, r*0.30);
+      ctx.fill();
+      ctx.strokeStyle='#fff'; ctx.lineWidth=2.6; ctx.lineCap='round';
+      ctx.beginPath(); ctx.arc(0, r*0.10, r*0.46, 0.42, 2.72); ctx.stroke();
+      /* пять делений */
+      ctx.rotate(0);
+      const gap=10, x0=-(b.hits0-1)*gap/2, yy=-r-12;
+      for(let i=0;i<b.hits0;i++){
+        ctx.beginPath(); ctx.arc(x0+i*gap, yy, 3.4, 0, 6.29);
+        ctx.fillStyle = i<b.hits ? FX.col : 'rgba(20,22,26,.18)';
+        ctx.fill();
+      }
+      /* какой эффект достанется — видно заранее */
+      ctx.fillStyle=FX.col;
+      ctx.font='600 11px "Golos Text",system-ui,sans-serif';
+      ctx.textAlign='center';
+      ctx.fillText(FX.label.toUpperCase(), 0, r+18);
+      ctx.textAlign='left';
+      if(b.flash>0){
+        ctx.globalAlpha=Math.min(.6,b.flash/170*.6);
+        ctx.fillStyle='#fff';
+        ctx.beginPath(); ctx.arc(0,0,r,0,6.29); ctx.fill();
+        ctx.globalAlpha=1;
+      }
+      ctx.restore(); return;
+    }
+
+    if(b.bonus){
+      const B=BONUS[b.bonus];
+      ctx.fillStyle=B.col;
+      ctx.beginPath(); ctx.arc(0,0,r,0,6.29); ctx.fill();
+      ctx.strokeStyle=B.col; ctx.globalAlpha=.45; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.arc(0,0,r+5+Math.sin(G.t*0.006)*2.5,0,6.29); ctx.stroke();
+      ctx.globalAlpha=1;
+      ctx.strokeStyle='#fff'; ctx.fillStyle='#fff';
+      ctx.lineWidth=2.2; ctx.lineCap='round';
+      const k=b.bonus;
+      if(k==='fluor'){
+        ctx.beginPath(); ctx.moveTo(0,-7); ctx.lineTo(0,7);
+        ctx.moveTo(-7,0); ctx.lineTo(7,0); ctx.stroke();
+      } else if(k==='anest'){
+        for(let i=0;i<3;i++){ ctx.rotate(1.047);
+          ctx.beginPath(); ctx.moveTo(0,-8); ctx.lineTo(0,8); ctx.stroke(); }
+      } else if(k==='airflow'){
+        for(let i=1;i<=3;i++){
+          ctx.beginPath(); ctx.arc(0,0,i*3.1,-0.9,0.9); ctx.stroke(); }
+      } else if(k==='turbo'){                   /* пропеллер */
+        ctx.rotate(G.t*0.02);
+        for(let i=0;i<3;i++){ ctx.rotate(2.094);
+          ctx.beginPath(); ctx.ellipse(0,-5,2.2,5,0,0,6.29); ctx.fill(); }
+      } else if(k==='ultra'){                   /* волны */
+        for(let i=-1;i<=1;i++){
+          ctx.beginPath();
+          ctx.moveTo(-8,i*4.5);
+          ctx.quadraticCurveTo(-2.5,i*4.5-3.5,0,i*4.5);
+          ctx.quadraticCurveTo(2.5,i*4.5+3.5,8,i*4.5);
+          ctx.stroke();
+        }
+      } else {                                  /* ×2 */
+        ctx.font='700 13px "Golos Text",system-ui,sans-serif';
+        ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText('×2',0,1);
+        ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+      }
+      ctx.restore(); return;
+    }
+
+    const K=KINDS[b.kind]||KINDS.small;
+
+    if(b.gold){                                 /* золотой: сияние + таймер */
+      const pulse=1+Math.sin(G.t*0.01)*0.08;
+      ctx.globalAlpha=.22; ctx.fillStyle=GOLD.glow;
+      ctx.beginPath(); ctx.arc(0,0,(r+14)*pulse,0,6.29); ctx.fill();
+      ctx.globalAlpha=A0;
+      ctx.fillStyle=GOLD.col;
+      ctx.beginPath();
+      for(let i=0;i<8;i++){
+        const a=i/8*6.283, rr=r*(0.9+0.12*Math.sin(i*2+b.a));
+        i? ctx.lineTo(Math.cos(a)*rr, Math.sin(a)*rr)
+         : ctx.moveTo(Math.cos(a)*rr, Math.sin(a)*rr);
+      }
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle=GOLD.glow;
+      ctx.beginPath(); ctx.arc(-r*.28,-r*.28,r*.2,0,6.29); ctx.fill();
+      ctx.fillStyle='#fff';
+      ctx.beginPath(); ctx.arc(-r*.28,-r*.08,r*.15,0,6.29); ctx.fill();
+      ctx.beginPath(); ctx.arc(r*.28,-r*.08,r*.15,0,6.29); ctx.fill();
+      ctx.fillStyle='#4A3B0E';
+      ctx.beginPath(); ctx.arc(-r*.26,-r*.06,r*.07,0,6.29); ctx.fill();
+      ctx.beginPath(); ctx.arc(r*.3,-r*.06,r*.07,0,6.29); ctx.fill();
+      /* сколько осталось до исчезновения */
+      ctx.strokeStyle=GOLD.col; ctx.lineWidth=3; ctx.lineCap='round';
+      ctx.beginPath();
+      ctx.arc(0,0,r+7,-1.5708,-1.5708+6.283*(b.ttl/GOLD.ttl));
+      ctx.stroke();
+      ctx.restore(); return;
+    }
+
+    /* тот, что перешёл черту, подсвечивается — видно боковым зрением */
+    if(b.y>DANGER_Y){
+      ctx.strokeStyle='#B3261E';
+      ctx.globalAlpha=.35+0.45*Math.abs(Math.sin(G.t*0.012));
+      ctx.lineWidth=2;
+      ctx.beginPath(); ctx.arc(0,0,r+7,0,6.29); ctx.stroke();
+      ctx.globalAlpha=A0;
+    }
+    ctx.rotate(Math.sin(b.a)*0.12);
+    ctx.fillStyle=K.col;
+    ctx.beginPath();
+    for(let i=0;i<10;i++){
+      const a=i/10*6.283, rr=r*(0.86+0.16*Math.sin(i*2.1+b.a));
+      i? ctx.lineTo(Math.cos(a)*rr, Math.sin(a)*rr)
+       : ctx.moveTo(Math.cos(a)*rr, Math.sin(a)*rr);
+    }
+    ctx.closePath(); ctx.fill();
+    if(b.hunter){                               /* идёт за бронёй — заметная кайма */
+      ctx.strokeStyle=SUPER_FX.armor.col;
+      ctx.lineWidth=2.4; ctx.globalAlpha=.55+0.45*Math.abs(Math.sin(G.t*0.008));
+      ctx.beginPath(); ctx.arc(0,0,r+5,0,6.29); ctx.stroke();
+      ctx.globalAlpha=A0;
+    }
+    if(K.split){                                /* трещина: подсказка, что развалится */
+      ctx.strokeStyle='rgba(255,255,255,.28)'; ctx.lineWidth=1.6; ctx.lineCap='round';
+      ctx.beginPath();
+      ctx.moveTo(0,-r*0.85); ctx.lineTo(r*0.16,-r*0.2);
+      ctx.lineTo(-r*0.14,r*0.24); ctx.lineTo(0,r*0.85);
+      ctx.stroke();
+    }
+    ctx.fillStyle='#fff';
+    ctx.beginPath(); ctx.arc(-r*.3,-r*.12,r*.19,0,6.29); ctx.fill();
+    ctx.beginPath(); ctx.arc(r*.3,-r*.12,r*.19,0,6.29); ctx.fill();
+    ctx.fillStyle='#14161A';
+    ctx.beginPath(); ctx.arc(-r*.28,-r*.1,r*.09,0,6.29); ctx.fill();
+    ctx.beginPath(); ctx.arc(r*.32,-r*.1,r*.09,0,6.29); ctx.fill();
+    /* вспышка от попадания */
+    if(b.flash>0){
+      ctx.globalAlpha=Math.min(.55,b.flash/170*.55);
+      ctx.fillStyle='#fff';
+      ctx.beginPath(); ctx.arc(0,0,r*0.98,0,6.29); ctx.fill();
+      ctx.globalAlpha=A0;
+    }
+    /* сколько касаний осталось */
+    if(b.hits0>1){
+      ctx.rotate(-Math.sin(b.a)*0.12);
+      const gap=9, x0=-(b.hits0-1)*gap/2, yy=-r-11;
+      for(let i=0;i<b.hits0;i++){
+        ctx.beginPath(); ctx.arc(x0+i*gap, yy, 3.2, 0, 6.29);
+        ctx.fillStyle = i<b.hits ? '#1B3D96' : 'rgba(27,61,150,.22)';
+        ctx.fill();
+      }
+    }
+    ctx.restore();
+  });
+
+  /* частицы */
+  G.burst.forEach(p=>{
+    ctx.globalAlpha=Math.max(0,p.life);
+    ctx.fillStyle=p.col||'#8A6A4F';
+    ctx.beginPath(); ctx.arc(p.x*W,p.y*H,3,0,6.29); ctx.fill();
+  });
+  ctx.globalAlpha=1;
+
+  /* разряды цепи */
+  if(G.arcs.length>60) G.arcs.splice(0, G.arcs.length-60);
+  for(let i=G.arcs.length-1;i>=0;i--){
+    const a=G.arcs[i];
+    a.life-=G.dtLast||16;          /* по времени, а не по кадрам */
+    if(a.life<=0){ G.arcs.splice(i,1); continue; }
+    const k=Math.min(1,a.life/300);
+    const mx=(a.x1+a.x2)/2*W + (Math.random()-.5)*16;
+    const my=(a.y1+a.y2)/2*H + (Math.random()-.5)*16;
+    /* широкое свечение под тонким разрядом — читается как удар, а не линия */
+    ctx.lineCap='round';
+    ctx.globalAlpha=k*0.28; ctx.strokeStyle='#5B86E5'; ctx.lineWidth=9;
+    ctx.beginPath();
+    ctx.moveTo(a.x1*W,a.y1*H); ctx.quadraticCurveTo(mx,my,a.x2*W,a.y2*H);
+    ctx.stroke();
+    ctx.globalAlpha=k*0.95; ctx.strokeStyle='#1B3D96'; ctx.lineWidth=3;
+    ctx.stroke();
+    /* вспышка в точке прилёта */
+    ctx.globalAlpha=k;
+    ctx.fillStyle='#fff';
+    ctx.beginPath(); ctx.arc(a.x2*W, a.y2*H, 5*k+2, 0, 6.29); ctx.fill();
+    ctx.globalAlpha=k*0.6; ctx.fillStyle='#5B86E5';
+    ctx.beginPath(); ctx.arc(a.x2*W, a.y2*H, 11*k+3, 0, 6.29); ctx.fill();
+    ctx.globalAlpha=1;
+  }
+
+  /* всплывающие очки в точке удара */
+  ctx.textAlign='center';
+  G.pops.forEach(q=>{
+    ctx.globalAlpha=Math.min(1, q.life/450);
+    ctx.fillStyle=q.col;
+    ctx.font='600 15px "Golos Text",system-ui,sans-serif';
+    ctx.fillText(q.text, q.x*W, q.y*H-14);
+  });
+  ctx.globalAlpha=1; ctx.textAlign='left';
+
+  /* название волны приёма */
+
+  /* бор */
+  const bx=G.px*W, by=G.py*H, rot=G.t*0.02, R=(G.wide>0?BUR_R*2:BUR_R);
+  ctx.save(); ctx.translate(bx,by);
+  ctx.strokeStyle=G.wide>0?'rgba(27,61,150,.45)':'rgba(27,61,150,.28)';
+  ctx.lineWidth=G.wide>0?2:1;
+  ctx.beginPath(); ctx.arc(0,0,R+2,0,6.29); ctx.stroke();
+  ctx.rotate(rot);
+  ctx.fillStyle='#1B3D96';
+  const bs=(G.wide>0?1.5:1)*1.15;
+  for(let i=0;i<6;i++){
+    ctx.rotate(1.047);
+    ctx.beginPath(); ctx.ellipse(0,-10*bs,3.2*bs,7*bs,0,0,6.29); ctx.fill();
+  }
+  ctx.fillStyle='#fff';
+  ctx.beginPath(); ctx.arc(0,0,4.5*bs,0,6.29); ctx.fill();
+  ctx.restore();
+
+  /* разлетевшиеся боры */
+  G.burs.forEach(u=>{
+    ctx.save(); ctx.translate(u.x*W, u.y*H);
+    ctx.globalAlpha=Math.min(1, u.life/400);
+    ctx.strokeStyle='rgba(27,61,150,.35)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.arc(0,0,BURS.r+2,0,6.29); ctx.stroke();
+    ctx.rotate(G.t*0.03+u.a);
+    ctx.fillStyle=SUPER_FX.burs.col;
+    for(let i=0;i<6;i++){
+      ctx.rotate(1.047);
+      ctx.beginPath(); ctx.ellipse(0,-6,2.2,4.6,0,0,6.29); ctx.fill();
+    }
+    ctx.fillStyle='#fff';
+    ctx.beginPath(); ctx.arc(0,0,3,0,6.29); ctx.fill();
+    ctx.restore(); ctx.globalAlpha=1;
+  });
+
+  /* ударная волна */
+  if(G.shock){
+    const k=G.shock.t/620, rad=k*Math.max(W,H)*0.85;
+    ctx.globalAlpha=(1-k)*0.55;
+    ctx.strokeStyle=G.shock.col||SUPER.col; ctx.lineWidth=4*(1-k)+1;
+    ctx.beginPath(); ctx.arc(G.shock.x*W, G.shock.y*H, rad, 0, 6.29); ctx.stroke();
+    ctx.globalAlpha=(1-k)*0.25;
+    ctx.beginPath(); ctx.arc(G.shock.x*W, G.shock.y*H, rad*0.72, 0, 6.29); ctx.stroke();
+    ctx.globalAlpha=1;
+  }
+  /* ---- финал ---- */
+  if(G.finale){
+    const f=G.finale;
+    /* обломки босса */
+    G.chunks.forEach(c=>{
+      ctx.save();
+      ctx.globalAlpha=Math.min(1,c.life);
+      ctx.translate(c.x*W, c.y*H); ctx.rotate(c.rot);
+      ctx.fillStyle=c.col;
+      ctx.beginPath();
+      for(let i=0;i<6;i++){
+        const a=i/6*6.283, rr=c.r*(0.75+0.35*Math.sin(i*2.3+c.rot));
+        i? ctx.lineTo(Math.cos(a)*rr, Math.sin(a)*rr)
+         : ctx.moveTo(Math.cos(a)*rr, Math.sin(a)*rr);
+      }
+      ctx.closePath(); ctx.fill();
+      ctx.restore();
+    });
+    ctx.globalAlpha=1;
+
+    /* очищающая волна: за её фронтом поле становится чистым */
+    const wv=seg(f.t, FINALE.wave[0], FINALE.wave[1]);
+    if(wv>0 && wv<1){
+      /* smoothstep, а не easeOut: волна должна пройти по экрану на глазах,
+         а не улететь за край в первые полсекунды */
+      const e=wv*wv*(3-2*wv);
+      const rad=e*Math.hypot(W,H)*0.82;
+      const fade=Math.min(1,(1-wv)*2.2);
+      const gr=ctx.createRadialGradient(f.x*W,f.y*H,Math.max(1,rad*0.55), f.x*W,f.y*H,rad);
+      gr.addColorStop(0,'rgba(255,255,255,0)');
+      gr.addColorStop(0.82,'rgba(226,236,250,'+(0.6*fade).toFixed(3)+')');
+      gr.addColorStop(1,'rgba(255,255,255,0)');
+      ctx.fillStyle=gr; ctx.fillRect(0,0,W,H);
+      ctx.globalAlpha=fade*0.9;
+      ctx.strokeStyle='#fff'; ctx.lineWidth=14*fade+3;
+      ctx.beginPath(); ctx.arc(f.x*W, f.y*H, rad, 0, 6.29); ctx.stroke();
+      ctx.globalAlpha=fade*0.55;
+      ctx.strokeStyle='#1B3D96'; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.arc(f.x*W, f.y*H, rad, 0, 6.29); ctx.stroke();
+      ctx.globalAlpha=1;
+    }
+  }
+
+  if(G.flashScreen>0){
+    ctx.globalAlpha=Math.min(.42, G.flashScreen/(G.finale?520:280)*.42);
+    ctx.fillStyle='#fff'; ctx.fillRect(0,0,W,H);
+    ctx.globalAlpha=1;
+  }
+
+
+  /* ---- тревога перед супер-кариесом и подсветка во время боя ---- */
+  if(G.alert>0 || G.boss){
+    const beat=0.5+0.5*Math.sin(G.t*0.006);
+    const power=G.alert>0 ? 1 : 0.45;
+    /* мягкая заливка от краёв */
+    const g=ctx.createRadialGradient(W/2,H/2,Math.min(W,H)*0.28,W/2,H/2,Math.max(W,H)*0.72);
+    g.addColorStop(0,'rgba(180,40,30,0)');
+    g.addColorStop(1,'rgba(180,40,30,'+(0.10+0.16*beat)*power+')');
+    ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+    /* рамка */
+    ctx.strokeStyle='rgba(179,38,30,'+(0.35+0.4*beat)*power+')';
+    ctx.lineWidth=6;
+    ctx.strokeRect(3,3,W-6,H-6);
+  }
+  if(G.alert>0){
+    const k=1-G.alert/BOSS.alert;
+    ctx.textAlign='center';
+    ctx.fillStyle='#B3261E';
+    ctx.font='600 13px "Golos Text",system-ui,sans-serif';
+    ctx.fillText('ВНИМАНИЕ', W/2, H*0.30);
+    ctx.fillStyle=BOSS.col;
+    ctx.font='400 30px Prata,Georgia,serif';
+    ctx.fillText('Супер-кариес', W/2, H*0.365);
+    ctx.fillStyle='#5F646D';
+    ctx.font='400 13px "Golos Text",system-ui,sans-serif';
+    /* Число берём из BOSS.hits, а не из строки: оно уже один раз разъехалось
+       с настройкой, и подпись обещала вдвое меньше, чем игра требовала. */
+    ctx.fillText(BOSS.hits+' касаний · чистите экран, пока есть время', W/2, H*0.405);
+    /* полоса обратного отсчёта */
+    const bw=Math.min(280,W*0.5);
+    ctx.fillStyle='rgba(179,38,30,.18)';
+    ctx.fillRect(W/2-bw/2, H*0.43, bw, 4);
+    ctx.fillStyle='#B3261E';
+    ctx.fillRect(W/2-bw/2, H*0.43, bw*k, 4);
+    ctx.textAlign='left';
+  }
+
+  /* полоски активных бонусов — по одной на эффект */
+  const act=[[G.slow,3600,BONUS.anest.col],[G.wide,5200,BONUS.airflow.col],
+             [G.turbo,5600,BONUS.turbo.col],[G.dbl,8000,BONUS.x2.col]].filter(a=>a[0]>0);
+  act.forEach((a,i)=>{
+    ctx.globalAlpha=.75; ctx.fillStyle=a[2];
+    ctx.fillRect(0, i*4, W*(a[0]/a[1]), 3);
+    ctx.globalAlpha=1;
+  });
+  ctx.restore();
+}
+
+/* Приз на старте собираем из CERT.options — суммы нигде не дублируются. */
+$('#gPrize').innerHTML = CERT.options.map(o=>
+  '<span class="opt"><b>'+o.sum+'</b><span>'+o.what+'</span></span>')
+  .join('<span class="or">или</span>');
+
+addEventListener('resize',()=>{ if(G.on) gResize(); });
+$('#gClose').onclick=closeGame;
+$('#gPlay').onclick=gStart;
+$('#gAgain').onclick=gStart;
+$('#gPauseBtn').onclick=togglePause;
+$('#gResume').onclick=()=>setPause(false);
+$('#rwSave').onclick=certDownload;
+$('#rwSend').onclick=certSend;
+$('#rwPlay').onclick=rewardClose;
+/* Возврат в экскурсию: сертификат уже выдан и лежит в переписке или в
+   загрузках, поэтому партию просто закрываем. */
+$('#rwBack').onclick=()=>{ $('#rwNote').textContent=''; closeGame(); };
+/* ушли со вкладки — ставим на паузу сами, чтобы не терять жизни впустую */
+addEventListener('visibilitychange',()=>{ if(document.hidden && G.on) setPause(true); });
+addEventListener('blur',()=>{ if(G.on) setPause(true); });
+/* Приоритетный выход: Esc всегда закрывает игру, что бы в ней ни творилось.
+   Обработчик в фазе перехвата и выше всех остальных — Escape до игры не дойдёт
+   ни до панели, ни до интро. */
+addEventListener('keydown',e=>{
+  if(!G.on) return;
+  if(e.key==='Escape'){
+    e.preventDefault(); e.stopImmediatePropagation();
+    closeGame(); return;
+  }
+  if(e.code==='Space' || e.key==='p' || e.key==='P' || e.key==='з' || e.key==='З'){
+    e.preventDefault(); togglePause();
+  }
+}, true);
+
+addEventListener('hashchange',()=>{
+  const k=location.hash.slice(1);
+  if(k in SCENES && k!==current) go(k);
+});
+
+console.log('%cЭкскурсия «Академия улыбки»','color:#1B3D96;font-weight:600',
+  '· сборка ' + BUILD);
+document.querySelector('.brand').title = 'Сборка ' + BUILD;
+
+buildDock();
+go(location.hash.slice(1) in SCENES ? location.hash.slice(1) : 'reception', true);
+Object.values(SCENES).forEach(s=>{const i=new Image();i.src=s.img;});
+</script>
+</body>
+</html>
