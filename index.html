@@ -44,7 +44,15 @@ img{display:block;max-width:100%}
   background:rgba(12,14,18,.72);backdrop-filter:blur(14px);
   border-bottom:1px solid rgba(255,255,255,.10);color:#fff;
 }
-.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.brand{
+  display:flex;align-items:center;gap:10px;min-width:0;
+  /* Без этих двух строк браузер красит ссылку своим синим: на тёмной
+     шапке он не читается ни на десктопе, ни на телефоне. */
+  color:#fff;text-decoration:none;
+  transition:opacity var(--t-fast) var(--ease);
+}
+.brand:hover{opacity:.78}
+.brand:focus-visible{outline:2px solid rgba(255,255,255,.7);outline-offset:3px}
 .brand svg{flex:0 0 auto}
 .brand b{font:400 17px/1 var(--serif);letter-spacing:.01em;white-space:nowrap}
 .bar .sep{width:1px;height:22px;background:rgba(255,255,255,.18)}
@@ -76,6 +84,34 @@ img{display:block;max-width:100%}
   transition:opacity var(--t-std) var(--ease);
 }
 .scene-fade{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;transition:opacity .3s var(--ease);z-index:16}
+
+/* ---------- край кадра: видно, что можно тянуть дальше ----------
+   Узкая размытая полоса у той стороны, куда кадр ещё сдвигается. Дошли до
+   границы снимка — полоса пропадает, край становится чётким. Размытие, а
+   не затемнение: затемнение выглядело бы как виньетка и путалось бы с той,
+   что уже есть на кадре. */
+.edge{
+  position:absolute;top:0;bottom:0;width:34px;z-index:15;pointer-events:none;
+  opacity:0;transition:opacity var(--t-std) var(--ease);
+  /* Лёгкое затемнение вместе с размытием: на белой стене одно размытие
+     почти не читается — стена и так без деталей. */
+  -webkit-backdrop-filter:blur(9px) brightness(.955);
+          backdrop-filter:blur(9px) brightness(.955);
+}
+.edge.l{left:0;
+  -webkit-mask-image:linear-gradient(to right,#000,transparent);
+          mask-image:linear-gradient(to right,#000,transparent)}
+.edge.r{right:0;
+  -webkit-mask-image:linear-gradient(to left,#000,transparent);
+          mask-image:linear-gradient(to left,#000,transparent)}
+.edge.t{top:0;left:0;right:0;bottom:auto;width:auto;height:34px;
+  -webkit-mask-image:linear-gradient(to bottom,#000,transparent);
+          mask-image:linear-gradient(to bottom,#000,transparent)}
+.edge.b{bottom:0;top:auto;left:0;right:0;width:auto;height:34px;
+  -webkit-mask-image:linear-gradient(to top,#000,transparent);
+          mask-image:linear-gradient(to top,#000,transparent)}
+.stage.pan-l .edge.l,.stage.pan-r .edge.r,
+.stage.pan-t .edge.t,.stage.pan-b .edge.b{opacity:1}
 .tour.moving .scene-fade{opacity:1}
 
 /* vignette so white rooms don't blow out the UI */
@@ -582,6 +618,7 @@ img{display:block;max-width:100%}
 }
 .g-card button:hover{background:var(--navy-d)}
 .g-card.wide{
+  position:absolute;   /* чтобы стрелка-подсказка держалась за карточку */
   width:min(420px, calc(100% - 32px));max-width:420px;
   /* 100% резолвится по .game-stage, который уже посчитан флексом:
      карточка не залезает на шапку и не уходит под нижнюю кромку. */
@@ -608,7 +645,18 @@ img{display:block;max-width:100%}
   transition:color var(--t-fast) var(--ease);
 }
 .rw-back:hover{color:var(--navy)!important}
-#rwImg{width:100%;border:1px solid var(--hair-2);margin:14px 0 12px}
+#rwImg{
+  display:block;width:100%;border:1px solid var(--hair-2);margin:14px 0 12px;
+}
+/* Условия — под раскрывашкой, а не простынёй в полкарточки. */
+.rw-more{margin:0 0 6px}
+.rw-more summary{
+  cursor:pointer;font-size:12px;color:var(--mute);
+  padding:6px 0;list-style:none;
+}
+.rw-more summary::-webkit-details-marker{display:none}
+.rw-more summary::after{content:' ▾'}
+.rw-more[open] summary::after{content:' ▴'}
 .rw-code{
   margin:0 0 16px!important;font-size:13px!important;color:var(--mute)!important;
   font-variant-numeric:tabular-nums;
@@ -623,6 +671,11 @@ img{display:block;max-width:100%}
 @media (max-width:520px){
   .rw-btns{flex-direction:column}
   .rw-btns button{width:100%}
+  /* Сертификат занимал почти весь экран, и человек не догадывался, что
+     ниже есть кнопки. Ограничиваем высоту — под картинку сразу попадает
+     код и кнопка отправки. */
+  #rwImg{max-height:38svh;width:auto;max-width:100%;margin-inline:auto}
+  .g-card.wide{padding:20px 18px}
 }
 .cta-link{
   flex:1 1 0;display:inline-flex;align-items:center;justify-content:center;
@@ -758,6 +811,50 @@ body.editing .edit-out{display:block}
   .go .cap{opacity:1;transform:none}
 }
 
+/* ---------- подсказка прокрутки ----------
+   Край содержимого растворяется ровно с той стороны, куда ещё можно
+   листать. Дошли до конца — граница снова чёткая, и сразу видно, что
+   дальше ничего нет. Делаем это маской по самому содержимому, а не
+   накладкой: накладка красится фоном и на картинке выглядит грязью. */
+.sfade{--fade:20px}
+.sfade.up.down{
+  -webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 var(--fade),#000 calc(100% - var(--fade)),transparent 100%);
+          mask-image:linear-gradient(to bottom,transparent 0,#000 var(--fade),#000 calc(100% - var(--fade)),transparent 100%);
+}
+.sfade.up:not(.down){
+  -webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 var(--fade));
+          mask-image:linear-gradient(to bottom,transparent 0,#000 var(--fade));
+}
+.sfade.down:not(.up){
+  -webkit-mask-image:linear-gradient(to top,transparent 0,#000 var(--fade));
+          mask-image:linear-gradient(to top,transparent 0,#000 var(--fade));
+}
+.sfade.left.right{
+  -webkit-mask-image:linear-gradient(to right,transparent 0,#000 var(--fade),#000 calc(100% - var(--fade)),transparent 100%);
+          mask-image:linear-gradient(to right,transparent 0,#000 var(--fade),#000 calc(100% - var(--fade)),transparent 100%);
+}
+.sfade.left:not(.right){
+  -webkit-mask-image:linear-gradient(to right,transparent 0,#000 var(--fade));
+          mask-image:linear-gradient(to right,transparent 0,#000 var(--fade));
+}
+.sfade.right:not(.left){
+  -webkit-mask-image:linear-gradient(to left,transparent 0,#000 var(--fade));
+          mask-image:linear-gradient(to left,transparent 0,#000 var(--fade));
+}
+
+/* Стрелка «листайте вниз» на карточке победы: маски мало, когда человек
+   вообще не ожидает, что там что-то есть. Уходит после первой прокрутки. */
+.scrollcue{
+  position:absolute;left:50%;bottom:10px;translate:-50% 0;z-index:3;
+  display:flex;align-items:center;gap:6px;pointer-events:none;
+  padding:5px 11px;border-radius:999px;
+  background:var(--navy);color:#fff;font-size:11.5px;letter-spacing:.02em;
+  box-shadow:0 6px 18px rgba(10,12,16,.28);
+  opacity:0;transition:opacity var(--t-std) var(--ease);
+}
+.g-card.down .scrollcue{opacity:1;animation:cueNudge 1.8s var(--ease) infinite}
+@keyframes cueNudge{0%,100%{transform:translateY(0)}50%{transform:translateY(3px)}}
+
 @media (prefers-reduced-motion:reduce){
   /* Псевдоэлементы * не матчит — пульсация точек продолжалась. И одной
      нулевой длительности мало: бесконечная итерация перезапускает
@@ -801,6 +898,9 @@ body.editing .edit-out{display:block}
       <p id="capText"></p>
       <button class="kit" id="kitBtn" hidden>Оборудование кабинета <b id="kitCount"></b></button>
     </div>
+    <!-- Размытые полосы у краёв: подсказка, что кадр сдвигается дальше. -->
+    <div class="edge l"></div><div class="edge r"></div>
+    <div class="edge t"></div><div class="edge b"></div>
     <div class="pan-hint" id="panHint" style="opacity:0">Потяните кадр, чтобы осмотреться</div>
     <div class="scene-fade"></div>
   </main>
@@ -879,12 +979,20 @@ body.editing .edit-out{display:block}
       </div>
       <p class="rw-note" id="rwNote"></p>
       <!-- Условия берём из CERT.terms, чтобы они не разъезжались с теми,
-           что напечатаны на самом сертификате. -->
-      <p class="rw-terms" id="rwTerms"></p>
+           что напечатаны на самом сертификате. Под раскрывашкой: на
+           телефоне они занимали треть карточки и отодвигали кнопки. -->
+      <details class="rw-more">
+        <summary>Условия сертификата</summary>
+        <p class="rw-terms" id="rwTerms"></p>
+      </details>
       <button class="ghost wide-btn" id="rwPlay">Продолжить игру</button>
       <!-- Тихий выход обратно в экскурсию: после победы человек чаще хочет
            дочитать про клинику, чем играть дальше, но навязывать это
            крупной кнопкой поверх сертификата не стоит. -->
+      <span class="scrollcue" aria-hidden="true">
+        листайте вниз
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </span>
       <button class="rw-back" id="rwBack">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5V20a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1v-8.5Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
         Вернуться в клинику
@@ -936,7 +1044,7 @@ body.editing .edit-out{display:block}
    ===================================================================== */
 /* Отметка сборки: видно в консоли браузера (F12) и в подсказке логотипа.
    Нужна, чтобы отличать свежую версию от закэшированной. */
-const BUILD = '27.09.2026 13:10';
+const BUILD = '27.09.2026 15:10';
 
 /* Адрес рабочего сайта. Объявлен до ITEMS и DOCS: обе структуры собирают
    из него ссылки прямо при инициализации. */
@@ -1268,8 +1376,20 @@ function applyPan(){
   pan.x=Math.max(-pan.max.x,Math.min(pan.max.x,pan.x));
   pan.y=Math.max(-pan.max.y,Math.min(pan.max.y,pan.y));
   frame.style.transform='translate('+pan.x+'px,'+pan.y+'px)';
+  /* Полосу зажигаем с той стороны, куда кадр ещё может сдвинуться.
+     Порог в 2 пикселя — иначе на дробном масштабе полоса не гаснет
+     даже в крайнем положении. */
+  const E=2;
+  stage.classList.toggle('pan-l', pan.x <  pan.max.x - E);
+  stage.classList.toggle('pan-r', pan.x > -pan.max.x + E);
+  stage.classList.toggle('pan-t', pan.y <  pan.max.y - E);
+  stage.classList.toggle('pan-b', pan.y > -pan.max.y + E);
 }
 addEventListener('resize',fit);
+
+/* Прокручиваемые блоки, которые живут всё время работы страницы. */
+watchScroll(pBody, 'y');          /* карточки, каталог, документы */
+watchScroll($('#dock'), 'x');     /* лента комнат внизу */
 
 /* перетаскивание сцены */
 let drag=null;
@@ -1420,6 +1540,7 @@ function openItem(id){
   const bk=pBody.querySelector('.pback');
   if(bk) bk.onclick=()=>listCtx.fn();
   showPanel();
+  refreshScroll(pBody);
 }
 
 /* Запись в мессенджер: ряд кнопок по числу заполненных каналов */
@@ -1460,6 +1581,7 @@ function openKit(){
     }).join('')+'</div>';
   pBody.querySelectorAll('.kitgrid button').forEach(b=>b.onclick=()=>openItem(b.dataset.id));
   showPanel();
+  refreshScroll(pBody);
 }
 
 /* ---- документы на стойке ---- */
@@ -1503,6 +1625,7 @@ function openDocs(){
     b.onclick=()=>openDocShot(gal.gallery, +b.dataset.doc);
   });
   showPanel();
+  refreshScroll(pBody);
 }
 
 /* Просмотр скана поверх страницы: стрелки листают, Esc закрывает. */
@@ -1516,6 +1639,7 @@ function openDocShot(list, i){
   $('#shotMeta').textContent=g.m||'';
   $('#shotNum').textContent=(i+1)+' / '+list.length;
   $('#shot').classList.add('on');
+  watchScroll($('#shot'), 'x');          /* увеличенный скан листается вбок */
   $('#shot').classList.remove('zoom');   /* новый документ — снова вписанный */
   $('#shot').scrollLeft=0;
   $('#shotClose').focus();
@@ -1561,11 +1685,46 @@ function openCatalog(f){
   pBody.querySelectorAll('.filters button').forEach(b=>b.onclick=()=>openCatalog(b.dataset.f));
   pBody.querySelectorAll('.kitgrid button').forEach(b=>b.onclick=()=>openItem(b.dataset.id));
   showPanel();
+  refreshScroll(pBody);
 }
 function plural(n,a,b,c){
   const m=n%100, d=n%10;
   return m>=11&&m<=14 ? c : d===1 ? a : d>=2&&d<=4 ? b : c;
 }
+
+/* ---------------------------------------------------------------------
+   ПОДСКАЗКА ПРОКРУТКИ
+   Вешает на прокручиваемый блок классы up/down (или left/right), по
+   которым CSS растворяет край. Порог в 2 пикселя — иначе на дробном
+   масштабе блок вечно считает, что «есть куда листать».
+   --------------------------------------------------------------------- */
+function watchScroll(el, axis){
+  if(!el || el.dataset.sfade) return;
+  el.dataset.sfade='1';
+  el.classList.add('sfade');
+  const upd=()=>{
+    if(axis==='x'){
+      el.classList.toggle('left',  el.scrollLeft > 2);
+      el.classList.toggle('right', el.scrollLeft + el.clientWidth < el.scrollWidth - 2);
+    } else {
+      const can = el.scrollTop + el.clientHeight < el.scrollHeight - 2;
+      el.classList.toggle('up',   el.scrollTop > 2);
+      el.classList.toggle('down', can);
+      /* карточке игры класс нужен на ней самой — на ней висит стрелка */
+      if(el.classList.contains('g-card')) el.classList.toggle('down', can);
+    }
+  };
+  el.addEventListener('scroll', upd, {passive:true});
+  if(window.ResizeObserver){
+    const ro=new ResizeObserver(upd); ro.observe(el);
+    if(el.firstElementChild) ro.observe(el.firstElementChild);
+  }
+  addEventListener('resize', upd);
+  el._sfade=upd;
+  requestAnimationFrame(upd); setTimeout(upd, 350);
+}
+/* Пересчитать после того, как содержимое поменялось. */
+function refreshScroll(el){ if(el && el._sfade) requestAnimationFrame(el._sfade); }
 
 function showPanel(){panel.classList.add('on');scrim.classList.add('on');pBody.scrollTop=0;$('#pClose').focus();}
 function hidePanel(){panel.classList.remove('on');scrim.classList.remove('on');}
@@ -2708,6 +2867,9 @@ function showReward(swept){
   $('#rwExp').textContent = G.cert.expires;
   $('#rwPts').textContent = swept;
   $('#gReward').hidden = false;
+  /* Карточка длинная: показываем, что её можно листать. */
+  watchScroll($('#gReward'), 'y');
+  refreshScroll($('#gReward'));
   setPause(true);
 }
 
