@@ -6,10 +6,32 @@
 <title>Экскурсия по клинике — Академия улыбки</title>
 <meta name="description" content="Интерактивная экскурсия по клинике «Академия улыбки»: пройдите по кабинетам и посмотрите оборудование, на котором вас лечат.">
 <meta name="theme-color" content="#ffffff">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&family=Prata&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%231B3D96' d='M12 6.5c1.8-2 4-2.6 5.7-1.7 2 1 2.7 3.5 2 6.4-.7 3-2.3 5.6-3.6 7-.9 1-2 .7-2.4-.7l-.9-3c-.2-.7-1.3-.7-1.6 0l-.9 3c-.4 1.4-1.5 1.7-2.4.7-1.3-1.4-2.9-4-3.6-7-.7-2.9 0-5.4 2-6.4C8 3.9 10.2 4.5 12 6.5Z'/%3E%3C/svg%3E">
+<!-- Шрифты лежат рядом, а не тянутся с fonts.googleapis.com: загрузка с
+     чужого сервера передаёт IP каждого посетителя за границу, и для сайта
+     российской клиники это лишний риск по 152-ФЗ. Оба шрифта под лицензией
+     OFL — размещать у себя разрешено, тексты лицензий в assets/tour/fonts.
+     Заодно страница перестала зависеть от доступности внешнего сервиса.
+     Предзагрузку не ставим: стили лежат в этом же файле, браузер находит
+     шрифты сразу при разборе CSS. -->
 <style>
+@font-face{
+  font-family:'Golos Text';
+  /* Один переменный файл на все начертания 400–600: три статических весили бы
+     втрое больше. Диапазон объявлен честно — браузер сам интерполирует. */
+  src:url('assets/tour/fonts/golos-var.woff2') format('woff2');
+  font-weight:400 700;
+  font-style:normal;
+  font-display:swap;
+}
+@font-face{
+  font-family:'Prata';
+  src:url('assets/tour/fonts/prata.woff2') format('woff2');
+  font-weight:400;
+  font-style:normal;
+  font-display:swap;
+}
+
 :root{
   --bg:#FFFFFF; --ink:#14161A; --ink-2:#4B5058; --mute:#5F646D;
   --hair:rgba(20,22,26,.14); --hair-2:rgba(20,22,26,.07); --tint:#F5F6F8;
@@ -1044,7 +1066,7 @@ body.editing .edit-out{display:block}
    ===================================================================== */
 /* Отметка сборки: видно в консоли браузера (F12) и в подсказке логотипа.
    Нужна, чтобы отличать свежую версию от закэшированной. */
-const BUILD = '27.09.2026 15:10';
+const BUILD = '28.09.2026 09:45';
 
 /* Адрес рабочего сайта. Объявлен до ITEMS и DOCS: обе структуры собирают
    из него ссылки прямо при инициализации. */
