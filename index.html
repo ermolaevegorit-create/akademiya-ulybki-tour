@@ -661,20 +661,6 @@ img{display:block;max-width:100%}
 .intro small{display:block;margin-top:18px;font-size:13px;color:var(--mute)}
 
 /* ---------- editor ---------- */
-.edit-hint{
-  position:fixed;left:50%;bottom:96px;translate:-50% 0;z-index:70;
-  padding:8px 14px;background:var(--navy);color:#fff;font-size:13px;border-radius:2px;
-  display:none;
-}
-body.editing .edit-hint{display:block}
-body.editing .frame{cursor:crosshair}
-.edit-out{
-  position:fixed;left:16px;bottom:96px;z-index:70;display:none;
-  width:min(360px,calc(100vw - 32px));max-height:40vh;overflow:auto;
-  background:#fff;padding:12px;font:400 12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;
-  box-shadow:0 10px 40px rgba(10,12,16,.4);white-space:pre-wrap;word-break:break-all;
-}
-body.editing .edit-out{display:block}
 
 /* ---------- mobile ---------- */
 @media (max-width:760px){
@@ -924,8 +910,6 @@ body.editing .edit-out{display:block}
   </button>
 </div>
 
-<div class="edit-hint">Режим разметки: кликните по сцене — координаты скопируются. E — выйти.</div>
-<div class="edit-out" id="editOut"></div>
 
 <script>
 /* =====================================================================
@@ -963,7 +947,7 @@ const ITEMS = {
     facts:[
       ['Специализация','Стоматолог-терапевт, стоматолог-хирург, имплантолог'],
       ['Образование','Новосибирский государственный медицинский университет, «Стоматология», 2015'],
-      ['В практике','С 2016 года'],
+      ['В практике','С 2015 года'],
       ['Направления','Терапия, эндодонтия, пародонтология, хирургия, имплантация, ортопедия'],
       ['Аккредитация','Свидетельство об аккредитации специалиста']
     ],
@@ -995,9 +979,6 @@ const ITEMS = {
   '04-micronx-impla-nx':{t:'Физиодиспенсер для имплантации',m:'MicroNX Impla-NX LED',img:'04-micronx-impla-nx',
     what:'Задаёт точную скорость и крутящий момент хирургического наконечника, одновременно подавая охлаждающий раствор.',
     why:'Кость чувствительна к перегреву. Контроль оборотов и охлаждение — это про то, как имплант приживается.'},
-  '05-portable-xray':{t:'Портативный рентген-аппарат',m:'Модель уточняется',img:'05-portable-xray',
-    what:'Прицельный снимок делают прямо в кабинете, не пересаживая вас в другое помещение.',
-    why:'Врач видит снимок сразу — не нужно переносить лечение на другой день, чтобы «сходить на рентген».'},
   '06-spds-uv-chamber':{t:'Камера хранения стерильных инструментов',m:'СПДС',img:'06-spds-uv-chamber',
     what:'Закрытая камера с ультрафиолетовым излучателем, где инструменты ждут приёма уже после стерилизации.',
     why:'Стерильный инструмент нельзя просто положить в ящик. Камера сохраняет его состояние до момента, когда его достанут при вас.'},
@@ -1070,7 +1051,7 @@ const SCENES = {
     title:'Кабинет №1', chip:'Кабинет №1', ar:[1536,1024],
     img:'assets/tour/scenes/treatment-blue.jpg',
     text:'Терапия, реставрация, цифровые слепки.',
-    kit:['01-dental-unit','03-shining3d-scanner','06-spds-uv-chamber','02-woson-lub909','05-portable-xray','13-curing-light-mercury','15-air-polisher','14-loupes-led'],
+    kit:['01-dental-unit','03-shining3d-scanner','06-spds-uv-chamber','02-woson-lub909','13-curing-light-mercury','15-air-polisher','14-loupes-led'],
     spots:[
       {id:'01-dental-unit', x:42, y:61},
       {id:'03-shining3d-scanner', x:14.5, y:63},
@@ -1177,7 +1158,7 @@ const DOCS = [
       ['Часы работы','9:00–17:00'],
       ['Приём','По предварительной записи'],
       ['Запись','По телефону или в WhatsApp'],
-      ['Снимки и заключения','Выдаём в день приёма']],
+      ['Снимки и КЛКТ','По направлению в диагностическом центре']],
    note:'Если опаздываете — предупредите, постараемся сдвинуть приём.'},
 
   {k:'Врач', rows:[
@@ -1590,22 +1571,10 @@ addEventListener('keydown',e=>{
     if(e.key==='ArrowRight'){ stepDocShot(1); return; }
   }
   if(e.key==='Escape'){hidePanel();$('#intro').classList.add('off');}
-  if(e.key==='e'||e.key==='E'||e.key==='у'||e.key==='У'){
-    if(e.target.tagName==='INPUT' || (typeof G!=='undefined' && G.on)) return;
-    document.body.classList.toggle('editing');
-  }
 });
 
 /* режим разметки: клик по сцене отдаёт координаты */
 frame.addEventListener('click',e=>{
-  if(!document.body.classList.contains('editing')) return;
-  const r=frame.getBoundingClientRect();
-  const x=+(((e.clientX-r.left)/r.width)*100).toFixed(1);
-  const y=+(((e.clientY-r.top)/r.height)*100).toFixed(1);
-  const line='{id:\'ЗАМЕНИТЬ\', x:'+x+', y:'+y+'},';
-  const out=$('#editOut');
-  out.textContent = current+'  →  '+line+'\n'+out.textContent;
-  navigator.clipboard?.writeText(line).catch(()=>{});
 });
 
 /* =====================================================================
