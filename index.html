@@ -6,10 +6,44 @@
 <title>Экскурсия по клинике — Академия улыбки</title>
 <meta name="description" content="Интерактивная экскурсия по клинике «Академия улыбки»: пройдите по кабинетам и посмотрите оборудование, на котором вас лечат.">
 <meta name="theme-color" content="#ffffff">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&family=Prata&display=swap" rel="stylesheet">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<!-- Политика безопасности. frame-ancestors, X-Frame-Options, Permissions-Policy
+     и X-Content-Type-Options в <meta> браузер не читает — это только HTTP-заголовки,
+     на GitHub Pages их не задать. Настроим на своём хостинге. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; form-action 'none'; img-src 'self' data:; font-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'sha256-X0/L7OB73pgB+PFWTCUIafICGqZxVxhinAg0dngXFO8='; connect-src 'self'">
+<link rel="canonical" href="https://ermolaevegorit-create.github.io/akademiya-ulybki-tour/">
 <style>
+/* Шрифты лежат рядом с экскурсией, а не грузятся с серверов Google.
+   Каждая загрузка со стороннего сервера передаёт IP и User-Agent посетителя
+   за рубеж: для сайта медицинской организации это трансграничная передача
+   персональных данных. Файлы те же, что на основном сайте.
+   unicode-range делит шрифт на кириллицу и латиницу — браузер качает только
+   то, что реально встретилось на странице. */
+@font-face{font-family:"Prata";font-style:normal;font-weight:400;font-display:swap;
+  src:url(assets/font/prata-cyrillic-400-normal.woff2) format("woff2");
+  unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:"Prata";font-style:normal;font-weight:400;font-display:swap;
+  src:url(assets/font/prata-latin-400-normal.woff2) format("woff2");
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:"Golos Text";font-style:normal;font-weight:400;font-display:swap;
+  src:url(assets/font/golos-text-cyrillic-400-normal.woff2) format("woff2");
+  unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:"Golos Text";font-style:normal;font-weight:400;font-display:swap;
+  src:url(assets/font/golos-text-latin-400-normal.woff2) format("woff2");
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:"Golos Text";font-style:normal;font-weight:500;font-display:swap;
+  src:url(assets/font/golos-text-cyrillic-500-normal.woff2) format("woff2");
+  unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:"Golos Text";font-style:normal;font-weight:500;font-display:swap;
+  src:url(assets/font/golos-text-latin-500-normal.woff2) format("woff2");
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:"Golos Text";font-style:normal;font-weight:600;font-display:swap;
+  src:url(assets/font/golos-text-cyrillic-600-normal.woff2) format("woff2");
+  unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:"Golos Text";font-style:normal;font-weight:600;font-display:swap;
+  src:url(assets/font/golos-text-latin-600-normal.woff2) format("woff2");
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+
 :root{
   --bg:#FFFFFF; --ink:#14161A; --ink-2:#4B5058; --mute:#5F646D;
   --hair:rgba(20,22,26,.14); --hair-2:rgba(20,22,26,.07); --tint:#F5F6F8;
@@ -754,6 +788,13 @@ img{display:block;max-width:100%}
     transition-duration:.01ms!important;
   }
 }
+
+/* Предупреждение на стартовом экране: по закону о рекламе оно должно быть
+   заметным, а не спрятанным в подвале. Кегль мельче основного текста, но
+   не меньше двенадцати пикселей — иначе это уже не «заметно». */
+.gate-warn{margin:16px auto 0;padding-top:14px;border-top:1px solid var(--hair-2);
+  font-size:12.5px;line-height:1.55;color:var(--mute);max-width:42ch;text-align:center}
+.gate-warn b{color:var(--ink-2);font-weight:600}
 </style>
 </head>
 <body>
@@ -812,6 +853,9 @@ img{display:block;max-width:100%}
     <p>Стрелки ведут из комнаты в комнату. Светящиеся точки — предметы, о которых можно почитать: кресло, автоклав, сканер. Загляните куда угодно ещё до записи.</p>
     <button id="startBtn">Начать экскурсию</button>
     <small>7 минут · 6 помещений · без регистрации</small>
+    <p class="gate-warn"><b>Имеются противопоказания. Необходима консультация специалиста.</b>
+    Информация в экскурсии носит справочный характер и не заменяет очную консультацию врача.
+    Часть изображений обработана с помощью искусственного интеллекта.</p>
   </div>
 </div>
 
@@ -1141,7 +1185,7 @@ const DOCS = [
       ['Наименование','ООО «Академия улыбки»'],
       ['ОГРН','1262300000038'],
       ['ИНН / КПП','2366057010 / 236601001'],
-      ['Юридический адрес','354008, Краснодарский край, г. Сочи, ул. Виноградная, д. 22/1Б'],
+      ['Юридический адрес','354008, Краснодарский край, г. Сочи, ул. Виноградная, д. 22/1Б, кв. 61'],
       ['Адрес приёма','354008, Сочи, Центральный район, ул. Виноградная, 55/1, пом. 22, 2-й этаж'],
       ['Телефон','+7 (989) 751-28-51'],
       ['Главный врач','Белоусова Александра Сергеевна']]},
@@ -1149,9 +1193,9 @@ const DOCS = [
   {k:'Лицензия', rows:[
       ['Регистрационный номер','Л041-01126-23/05841444'],
       ['Дата предоставления','03.08.2026'],
-      ['Лицензирующий орган','Министерство здравоохранения Краснодарского края, приказ № 3046'],
+      ['Лицензирующий орган','Министерство здравоохранения Краснодарского края (приказ № 3046 от 03.08.2026)'],
       ['Срок действия','Бессрочно'],
-      ['Работы и услуги','Сестринское дело; ортодонтия; стоматология общей практики, ортопедическая, терапевтическая, хирургическая']],
+      ['Работы и услуги','Сестринское дело; организация здравоохранения и общественное здоровье, эпидемиология; ортодонтия; стоматология общей практики; стоматология ортопедическая; стоматология терапевтическая; стоматология хирургическая']],
    link:{href:SITE+'info.html', text:'Сведения о клинике и лицензия'}},
 
   {k:'Режим работы и запись', rows:[
@@ -1170,7 +1214,7 @@ const DOCS = [
    /* Дипломы и сертификаты. Чтобы добавить документ: положить файл в
       assets/tour/docs/ и дописать сюда строку. Пустой список не рисуется.
       Подписи сверены по самим сканам, а не по памяти.
-      ВАЖНО: документы 2015–2016 годов выданы на девичью фамилию Бондарева.
+      ВАЖНО: документы 2016 года выданы на девичью фамилию Бондарева.
       Подпись об этом стоит ниже, иначе разные фамилии на сканах читаются
       как чужие документы. */
    gallery:[
@@ -1179,13 +1223,13 @@ const DOCS = [
      {src:'02-sertifikat-stomatologiya', t:'Сертификат специалиста «Стоматология»',
       m:'НГМУ, 2016'},
      {src:'03-diplom-perepodgotovka',  t:'Диплом о профессиональной переподготовке',
-      m:'Организация здравоохранения и общественное здоровье, 2019'},
+      m:'ООО «ДКА‑МЕД», Москва, 576 часов, 2019'},
      {src:'04-sertifikat-ozioz',       t:'Сертификат специалиста',
-      m:'Организация здравоохранения и общественное здоровье, 2019'},
+      m:'ООО «ДКА‑МЕД», Москва, 2019'},
      {src:'05-udostoverenie-2025',     t:'Удостоверение о повышении квалификации',
       m:'144 часа, «Центр-С», Ставрополь, 2025'}
    ],
-   galleryNote:'Документы 2015–2016 годов выданы на девичью фамилию — Бондарева Александра Сергеевна.'},
+   galleryNote:'Документы 2016 года выданы на девичью фамилию — Бондарева Александра Сергеевна.'},
 
   {k:'Права пациента', list:[
       'Выбор врача и уважительное отношение.',
@@ -1203,7 +1247,12 @@ const DOCS = [
   {k:'Документы', links:[
       {href:SITE+'info.html',    text:'Сведения о клинике и лицензия'},
       {href:SITE+'privacy.html', text:'Политика обработки персональных данных'}],
-   flag:'Образцы договоров, выписка из реестра лицензий с QR-кодом и правила поведения пациента пока не приложены — как появятся файлы, добавим сюда.'}
+   flag:'Образцы договоров, выписка из реестра лицензий с QR-кодом и правила поведения пациента пока не приложены — как появятся файлы, добавим сюда.'},
+
+  {k:'Предупреждение', rows:[
+      ['Противопоказания','Имеются противопоказания. Необходима консультация специалиста'],
+      ['Характер сведений','Информация в экскурсии справочная, не является публичной офертой и не заменяет очную консультацию врача'],
+      ['Изображения','Часть изображений обработана с помощью искусственного интеллекта']]}
 ];
 
 const ORDER = ['reception','corridor','treatment-blue','treatment-black','sterilization','restroom'];
@@ -3409,9 +3458,16 @@ addEventListener('keydown',e=>{
   }
 }, true);
 
+/* Имя сцены приходит из адресной строки, то есть снаружи. Поэтому проверяем
+   его по белому списку: подходит только то, что есть среди наших сцен.
+   Проверяем через hasOwnProperty, а не через `in`: оператор `in` находит и
+   унаследованные свойства объекта — constructor, toString, __proto__, — так
+   что адрес вида #constructor прошёл бы проверку и уронил сцену. */
+const isScene = k => Object.prototype.hasOwnProperty.call(SCENES, k);
+
 addEventListener('hashchange',()=>{
   const k=location.hash.slice(1);
-  if(k in SCENES && k!==current) go(k);
+  if(isScene(k) && k!==current) go(k);
 });
 
 console.log('%cЭкскурсия «Академия улыбки»','color:#1B3D96;font-weight:600',
@@ -3419,7 +3475,8 @@ console.log('%cЭкскурсия «Академия улыбки»','color:#1B3
 document.querySelector('.brand').title = 'Сборка ' + BUILD;
 
 buildDock();
-go(location.hash.slice(1) in SCENES ? location.hash.slice(1) : 'reception', true);
+const first = location.hash.slice(1);
+go(isScene(first) ? first : 'reception', true);
 Object.values(SCENES).forEach(s=>{const i=new Image();i.src=s.img;});
 </script>
 </body>
