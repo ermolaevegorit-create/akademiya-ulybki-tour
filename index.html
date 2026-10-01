@@ -667,9 +667,13 @@ img{display:block;max-width:100%}
   transition:color var(--t-fast) var(--ease);
 }
 .rw-back:hover{color:var(--navy)!important}
-#rwImg{
+#rwImg,#rwCanvas{
   display:block;width:100%;border:1px solid var(--hair-2);margin:14px 0 12px;
 }
+/* Правило по id сильнее браузерного [hidden]{display:none}: без этой
+   строки спрятанная картинка осталась бы висеть битым квадратом над
+   запасным канвасом. */
+#rwImg[hidden]{display:none}
 /* Условия — под раскрывашкой, а не простынёй в полкарточки. */
 .rw-more{margin:0 0 6px}
 .rw-more summary{
@@ -696,7 +700,7 @@ img{display:block;max-width:100%}
   /* Сертификат занимал почти весь экран, и человек не догадывался, что
      ниже есть кнопки. Ограничиваем высоту — под картинку сразу попадает
      код и кнопка отправки. */
-  #rwImg{max-height:38svh;width:auto;max-width:100%;margin-inline:auto}
+  #rwImg,#rwCanvas{max-height:38svh;width:auto;max-width:100%;margin-inline:auto}
   .g-card.wide{padding:20px 18px}
 }
 .cta-link{
@@ -1066,7 +1070,7 @@ body.editing .edit-out{display:block}
    ===================================================================== */
 /* Отметка сборки: видно в консоли браузера (F12) и в подсказке логотипа.
    Нужна, чтобы отличать свежую версию от закэшированной. */
-const BUILD = '28.09.2026 09:45';
+const BUILD = '01.10.2026 10:20';
 
 /* Адрес рабочего сайта. Объявлен до ITEMS и DOCS: обе структуры собирают
    из него ссылки прямо при инициализации. */
@@ -2055,7 +2059,7 @@ function closeGame(){
   /* Отложенная отрисовка сертификата и его blob-ссылка живут дольше партии,
      если их не прибрать: закрыли игру — прибираем. */
   certDone();
-  if(G.certUrl){ URL.revokeObjectURL(G.certUrl); G.certUrl=null; }
+  G.certData=null;
   $('#gReward').hidden=true; $('#gPause').hidden=true;
   gWrap.classList.remove('on'); document.body.style.overflow='';
 }
@@ -2071,7 +2075,7 @@ function gReset(){
   G.comboT=0; G.freeze=0; G.shake=0; G.pops=[]; G.arcs=[];
   G.goldIn=GOLD.firstAt; G.chainSeen=false;
   G.finale=null; G.chunks=[]; G.rings=[];
-  G.cert=null; G.certPending=false;
+  G.cert=null; G.certPending=false; G.certData=null;
   $('#gReward').hidden=true;
   $('#gScore').textContent='0'; gCombo(); gHearts(); gArmor();
 }
@@ -2861,8 +2865,19 @@ function prepareCert(){
     G.certTimer = 0;
     G.cert = makeCert();
     G.certCanvas = drawCert(G.cert);
-    if(G.certUrl){ URL.revokeObjectURL(G.certUrl); G.certUrl = null; }
-    G.certCanvas.toBlob(bl=>{ G.certUrl = URL.createObjectURL(bl); }, 'image/png');
+    G.certData = null;
+    /* Картинку отдаём как data:, а не blob:. В предпросмотре на claude.ai
+       страница живёт в песочнице с «пустым» источником, и blob:null/… в
+       <img> не грузится — вместо сертификата был битый квадрат. data:
+       грузится везде. Читаем через FileReader, чтобы кодирование PNG и
+       base64 шли вне кадра: toDataURL синхронный и подвешивал анимацию
+       ровно перед появлением карточки. */
+    G.certCanvas.toBlob(bl=>{
+      if(!bl) return;
+      const fr = new FileReader();
+      fr.onload = ()=>{ G.certData = fr.result; };
+      fr.readAsDataURL(bl);
+    }, 'image/png');
   }, 40);
 }
 /* Готовность сертификата снимается после показа, а не в конце партии:
@@ -2873,12 +2888,33 @@ function certDone(){
   if(G.certTimer){ clearTimeout(G.certTimer); G.certTimer = 0; }
 }
 
+/* Запасной показ сертификата: сам канвас вместо <img>. Он уже нарисован,
+   загружать нечего, и никакая политика безопасности страницы его не
+   перехватит. Картинку не выбрасываем, а прячем: на неё завязаны
+   $('#rwImg') и вся последующая логика. */
+function certCanvasView(){
+  const cv = G.certCanvas, old = document.getElementById('rwCanvas');
+  cv.id = 'rwCanvas';
+  cv.setAttribute('role','img');
+  cv.setAttribute('aria-label','Подарочный сертификат клиники');
+  if(old && old!==cv) old.replaceWith(cv);
+  else if(!cv.isConnected) $('#rwImg').insertAdjacentElement('afterend', cv);
+}
+
 function showReward(swept){
   if(!G.cert){                       /* подстраховка, если подготовка не успела */
     G.cert = makeCert();
     G.certCanvas = drawCert(G.cert);
   }
-  $('#rwImg').src = G.certUrl || G.certCanvas.toDataURL('image/png');
+  /* Если асинхронная подготовка не успела — кодируем на месте.
+     Последний рубеж: если картинку не удалось показать и так (строгая
+     политика безопасности страницы блокировала источник), подставляем
+     сам канвас — он уже нарисован, и загружать там нечего. Пустая
+     рамка с подписью на месте сертификата выглядит как поломка. */
+  const im = $('#rwImg');
+  im.onerror = ()=>{ im.onerror = null; im.hidden = true; certCanvasView(); };
+  im.src = G.certData || G.certCanvas.toDataURL('image/png');
+  if(im.hidden) certCanvasView();   /* режим уже включён прошлой победой */
   certDone();
   /* Что именно выпало — словами, до картинки: сумма на сертификате мелкая,
      а человек хочет понять результат сразу. */
