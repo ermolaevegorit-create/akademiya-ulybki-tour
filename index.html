@@ -7,30 +7,43 @@
 <meta name="description" content="Интерактивная экскурсия по клинике «Академия улыбки»: пройдите по кабинетам и посмотрите оборудование, на котором вас лечат.">
 <meta name="theme-color" content="#ffffff">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%231B3D96' d='M12 6.5c1.8-2 4-2.6 5.7-1.7 2 1 2.7 3.5 2 6.4-.7 3-2.3 5.6-3.6 7-.9 1-2 .7-2.4-.7l-.9-3c-.2-.7-1.3-.7-1.6 0l-.9 3c-.4 1.4-1.5 1.7-2.4.7-1.3-1.4-2.9-4-3.6-7-.7-2.9 0-5.4 2-6.4C8 3.9 10.2 4.5 12 6.5Z'/%3E%3C/svg%3E">
-<!-- Шрифты лежат рядом, а не тянутся с fonts.googleapis.com: загрузка с
-     чужого сервера передаёт IP каждого посетителя за границу, и для сайта
-     российской клиники это лишний риск по 152-ФЗ. Оба шрифта под лицензией
-     OFL — размещать у себя разрешено, тексты лицензий в assets/tour/fonts.
-     Заодно страница перестала зависеть от доступности внешнего сервиса.
-     Предзагрузку не ставим: стили лежат в этом же файле, браузер находит
-     шрифты сразу при разборе CSS. -->
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<!-- Политика безопасности. frame-ancestors, X-Frame-Options, Permissions-Policy
+     и X-Content-Type-Options в <meta> браузер не читает — это только HTTP-заголовки,
+     на GitHub Pages их не задать. Настроим на своём хостинге. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; form-action 'none'; img-src 'self' data:; font-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'sha256-MBTOPsD3ioFZwuX/aqLQmuL2hc4D1DPgQBKwa/S5hG8='; connect-src 'self'">
+<link rel="canonical" href="https://ermolaevegorit-create.github.io/akademiya-ulybki-tour/">
 <style>
-@font-face{
-  font-family:'Golos Text';
-  /* Один переменный файл на все начертания 400–600: три статических весили бы
-     втрое больше. Диапазон объявлен честно — браузер сам интерполирует. */
-  src:url('assets/tour/fonts/golos-var.woff2') format('woff2');
-  font-weight:400 700;
-  font-style:normal;
-  font-display:swap;
-}
-@font-face{
-  font-family:'Prata';
-  src:url('assets/tour/fonts/prata.woff2') format('woff2');
-  font-weight:400;
-  font-style:normal;
-  font-display:swap;
-}
+/* Шрифты лежат рядом с экскурсией, а не грузятся с серверов Google.
+   Каждая загрузка со стороннего сервера передаёт IP и User-Agent посетителя
+   за рубеж: для сайта медицинской организации это трансграничная передача
+   персональных данных. Файлы те же, что на основном сайте.
+   unicode-range делит шрифт на кириллицу и латиницу — браузер качает только
+   то, что реально встретилось на странице. */
+@font-face{font-family:"Prata";font-style:normal;font-weight:400;font-display:swap;
+  src:url(assets/font/prata-cyrillic-400-normal.woff2) format("woff2");
+  unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:"Prata";font-style:normal;font-weight:400;font-display:swap;
+  src:url(assets/font/prata-latin-400-normal.woff2) format("woff2");
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:"Golos Text";font-style:normal;font-weight:400;font-display:swap;
+  src:url(assets/font/golos-text-cyrillic-400-normal.woff2) format("woff2");
+  unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:"Golos Text";font-style:normal;font-weight:400;font-display:swap;
+  src:url(assets/font/golos-text-latin-400-normal.woff2) format("woff2");
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:"Golos Text";font-style:normal;font-weight:500;font-display:swap;
+  src:url(assets/font/golos-text-cyrillic-500-normal.woff2) format("woff2");
+  unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:"Golos Text";font-style:normal;font-weight:500;font-display:swap;
+  src:url(assets/font/golos-text-latin-500-normal.woff2) format("woff2");
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:"Golos Text";font-style:normal;font-weight:600;font-display:swap;
+  src:url(assets/font/golos-text-cyrillic-600-normal.woff2) format("woff2");
+  unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:"Golos Text";font-style:normal;font-weight:600;font-display:swap;
+  src:url(assets/font/golos-text-latin-600-normal.woff2) format("woff2");
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
 
 :root{
   --bg:#FFFFFF; --ink:#14161A; --ink-2:#4B5058; --mute:#5F646D;
@@ -740,20 +753,6 @@ img{display:block;max-width:100%}
 .intro small{display:block;margin-top:18px;font-size:13px;color:var(--mute)}
 
 /* ---------- editor ---------- */
-.edit-hint{
-  position:fixed;left:50%;bottom:96px;translate:-50% 0;z-index:70;
-  padding:8px 14px;background:var(--navy);color:#fff;font-size:13px;border-radius:2px;
-  display:none;
-}
-body.editing .edit-hint{display:block}
-body.editing .frame{cursor:crosshair}
-.edit-out{
-  position:fixed;left:16px;bottom:96px;z-index:70;display:none;
-  width:min(360px,calc(100vw - 32px));max-height:40vh;overflow:auto;
-  background:#fff;padding:12px;font:400 12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;
-  box-shadow:0 10px 40px rgba(10,12,16,.4);white-space:pre-wrap;word-break:break-all;
-}
-body.editing .edit-out{display:block}
 
 /* ---------- mobile ---------- */
 @media (max-width:760px){
@@ -891,6 +890,13 @@ body.editing .edit-out{display:block}
     transition-duration:.01ms!important;
   }
 }
+
+/* Предупреждение на стартовом экране: по закону о рекламе оно должно быть
+   заметным, а не спрятанным в подвале. Кегль мельче основного текста, но
+   не меньше двенадцати пикселей — иначе это уже не «заметно». */
+.gate-warn{margin:16px auto 0;padding-top:14px;border-top:1px solid var(--hair-2);
+  font-size:12.5px;line-height:1.55;color:var(--mute);max-width:42ch;text-align:center}
+.gate-warn b{color:var(--ink-2);font-weight:600}
 </style>
 </head>
 <body>
@@ -952,6 +958,9 @@ body.editing .edit-out{display:block}
     <p>Стрелки ведут из комнаты в комнату. Светящиеся точки — предметы, о которых можно почитать: кресло, автоклав, сканер. Загляните куда угодно ещё до записи.</p>
     <button id="startBtn">Начать экскурсию</button>
     <small>7 минут · 6 помещений · без регистрации</small>
+    <p class="gate-warn"><b>Имеются противопоказания. Необходима консультация специалиста.</b>
+    Информация в экскурсии носит справочный характер и не заменяет очную консультацию врача.
+    Часть изображений обработана с помощью искусственного интеллекта.</p>
   </div>
 </div>
 
@@ -1058,8 +1067,6 @@ body.editing .edit-out{display:block}
   </button>
 </div>
 
-<div class="edit-hint">Режим разметки: кликните по сцене — координаты скопируются. E — выйти.</div>
-<div class="edit-out" id="editOut"></div>
 
 <script>
 /* =====================================================================
@@ -1070,7 +1077,7 @@ body.editing .edit-out{display:block}
    ===================================================================== */
 /* Отметка сборки: видно в консоли браузера (F12) и в подсказке логотипа.
    Нужна, чтобы отличать свежую версию от закэшированной. */
-const BUILD = '01.10.2026 10:20';
+const BUILD = '01.10.2026 10:05';
 
 /* Адрес рабочего сайта. Объявлен до ITEMS и DOCS: обе структуры собирают
    из него ссылки прямо при инициализации. */
@@ -1097,7 +1104,7 @@ const ITEMS = {
     facts:[
       ['Специализация','Стоматолог-терапевт, стоматолог-хирург, имплантолог'],
       ['Образование','Новосибирский государственный медицинский университет, «Стоматология», 2015'],
-      ['В практике','С 2016 года'],
+      ['В практике','С 2015 года'],
       ['Направления','Терапия, эндодонтия, пародонтология, хирургия, имплантация, ортопедия'],
       ['Аккредитация','Свидетельство об аккредитации специалиста']
     ],
@@ -1129,9 +1136,6 @@ const ITEMS = {
   '04-micronx-impla-nx':{t:'Физиодиспенсер для имплантации',m:'MicroNX Impla-NX LED',img:'04-micronx-impla-nx',
     what:'Задаёт точную скорость и крутящий момент хирургического наконечника, одновременно подавая охлаждающий раствор.',
     why:'Кость чувствительна к перегреву. Контроль оборотов и охлаждение — это про то, как имплант приживается.'},
-  '05-portable-xray':{t:'Портативный рентген-аппарат',m:'Модель уточняется',img:'05-portable-xray',
-    what:'Прицельный снимок делают прямо в кабинете, не пересаживая вас в другое помещение.',
-    why:'Врач видит снимок сразу — не нужно переносить лечение на другой день, чтобы «сходить на рентген».'},
   '06-spds-uv-chamber':{t:'Камера хранения стерильных инструментов',m:'СПДС',img:'06-spds-uv-chamber',
     what:'Закрытая камера с ультрафиолетовым излучателем, где инструменты ждут приёма уже после стерилизации.',
     why:'Стерильный инструмент нельзя просто положить в ящик. Камера сохраняет его состояние до момента, когда его достанут при вас.'},
@@ -1204,7 +1208,7 @@ const SCENES = {
     title:'Кабинет №1', chip:'Кабинет №1', ar:[1536,1024],
     img:'assets/tour/scenes/treatment-blue.jpg',
     text:'Терапия, реставрация, цифровые слепки.',
-    kit:['01-dental-unit','03-shining3d-scanner','06-spds-uv-chamber','02-woson-lub909','05-portable-xray','13-curing-light-mercury','15-air-polisher','14-loupes-led'],
+    kit:['01-dental-unit','03-shining3d-scanner','06-spds-uv-chamber','02-woson-lub909','13-curing-light-mercury','15-air-polisher','14-loupes-led'],
     spots:[
       {id:'01-dental-unit', x:42, y:61},
       {id:'03-shining3d-scanner', x:14.5, y:63},
@@ -1294,7 +1298,7 @@ const DOCS = [
       ['Наименование','ООО «Академия улыбки»'],
       ['ОГРН','1262300000038'],
       ['ИНН / КПП','2366057010 / 236601001'],
-      ['Юридический адрес','354008, Краснодарский край, г. Сочи, ул. Виноградная, д. 22/1Б'],
+      ['Юридический адрес','354008, Краснодарский край, г. Сочи, ул. Виноградная, д. 22/1Б, кв. 61'],
       ['Адрес приёма','354008, Сочи, Центральный район, ул. Виноградная, 55/1, пом. 22, 2-й этаж'],
       ['Телефон','+7 (989) 751-28-51'],
       ['Главный врач','Белоусова Александра Сергеевна']]},
@@ -1302,16 +1306,16 @@ const DOCS = [
   {k:'Лицензия', rows:[
       ['Регистрационный номер','Л041-01126-23/05841444'],
       ['Дата предоставления','03.08.2026'],
-      ['Лицензирующий орган','Министерство здравоохранения Краснодарского края, приказ № 3046'],
+      ['Лицензирующий орган','Министерство здравоохранения Краснодарского края (приказ № 3046 от 03.08.2026)'],
       ['Срок действия','Бессрочно'],
-      ['Работы и услуги','Сестринское дело; ортодонтия; стоматология общей практики, ортопедическая, терапевтическая, хирургическая']],
+      ['Работы и услуги','Сестринское дело; организация здравоохранения и общественное здоровье, эпидемиология; ортодонтия; стоматология общей практики; стоматология ортопедическая; стоматология терапевтическая; стоматология хирургическая']],
    link:{href:SITE+'info.html', text:'Сведения о клинике и лицензия'}},
 
   {k:'Режим работы и запись', rows:[
       ['Часы работы','9:00–17:00'],
       ['Приём','По предварительной записи'],
       ['Запись','По телефону или в WhatsApp'],
-      ['Снимки и заключения','Выдаём в день приёма']],
+      ['Снимки и КЛКТ','По направлению в диагностическом центре']],
    note:'Если опаздываете — предупредите, постараемся сдвинуть приём.'},
 
   {k:'Врач', rows:[
@@ -1323,7 +1327,7 @@ const DOCS = [
    /* Дипломы и сертификаты. Чтобы добавить документ: положить файл в
       assets/tour/docs/ и дописать сюда строку. Пустой список не рисуется.
       Подписи сверены по самим сканам, а не по памяти.
-      ВАЖНО: документы 2015–2016 годов выданы на девичью фамилию Бондарева.
+      ВАЖНО: документы 2016 года выданы на девичью фамилию Бондарева.
       Подпись об этом стоит ниже, иначе разные фамилии на сканах читаются
       как чужие документы. */
    gallery:[
@@ -1332,13 +1336,13 @@ const DOCS = [
      {src:'02-sertifikat-stomatologiya', t:'Сертификат специалиста «Стоматология»',
       m:'НГМУ, 2016'},
      {src:'03-diplom-perepodgotovka',  t:'Диплом о профессиональной переподготовке',
-      m:'Организация здравоохранения и общественное здоровье, 2019'},
+      m:'ООО «ДКА‑МЕД», Москва, 576 часов, 2019'},
      {src:'04-sertifikat-ozioz',       t:'Сертификат специалиста',
-      m:'Организация здравоохранения и общественное здоровье, 2019'},
+      m:'ООО «ДКА‑МЕД», Москва, 2019'},
      {src:'05-udostoverenie-2025',     t:'Удостоверение о повышении квалификации',
       m:'144 часа, «Центр-С», Ставрополь, 2025'}
    ],
-   galleryNote:'Документы 2015–2016 годов выданы на девичью фамилию — Бондарева Александра Сергеевна.'},
+   galleryNote:'Документы 2016 года выданы на девичью фамилию — Бондарева Александра Сергеевна.'},
 
   {k:'Права пациента', list:[
       'Выбор врача и уважительное отношение.',
@@ -1356,7 +1360,12 @@ const DOCS = [
   {k:'Документы', links:[
       {href:SITE+'info.html',    text:'Сведения о клинике и лицензия'},
       {href:SITE+'privacy.html', text:'Политика обработки персональных данных'}],
-   flag:'Образцы договоров, выписка из реестра лицензий с QR-кодом и правила поведения пациента пока не приложены — как появятся файлы, добавим сюда.'}
+   flag:'Образцы договоров, выписка из реестра лицензий с QR-кодом и правила поведения пациента пока не приложены — как появятся файлы, добавим сюда.'},
+
+  {k:'Предупреждение', rows:[
+      ['Противопоказания','Имеются противопоказания. Необходима консультация специалиста'],
+      ['Характер сведений','Информация в экскурсии справочная, не является публичной офертой и не заменяет очную консультацию врача'],
+      ['Изображения','Часть изображений обработана с помощью искусственного интеллекта']]}
 ];
 
 const ORDER = ['reception','corridor','treatment-blue','treatment-black','sterilization','restroom'];
@@ -1775,23 +1784,8 @@ addEventListener('keydown',e=>{
     if(e.key==='ArrowRight'){ stepDocShot(1); return; }
   }
   if(e.key==='Escape'){hidePanel();$('#intro').classList.add('off');}
-  if(e.key==='e'||e.key==='E'||e.key==='у'||e.key==='У'){
-    if(e.target.tagName==='INPUT' || (typeof G!=='undefined' && G.on)) return;
-    document.body.classList.toggle('editing');
-  }
 });
 
-/* режим разметки: клик по сцене отдаёт координаты */
-frame.addEventListener('click',e=>{
-  if(!document.body.classList.contains('editing')) return;
-  const r=frame.getBoundingClientRect();
-  const x=+(((e.clientX-r.left)/r.width)*100).toFixed(1);
-  const y=+(((e.clientY-r.top)/r.height)*100).toFixed(1);
-  const line='{id:\'ЗАМЕНИТЬ\', x:'+x+', y:'+y+'},';
-  const out=$('#editOut');
-  out.textContent = current+'  →  '+line+'\n'+out.textContent;
-  navigator.clipboard?.writeText(line).catch(()=>{});
-});
 
 /* =====================================================================
    МИНИ-ИГРА «БОР ПРОТИВ КАРИЕСА»
@@ -3677,9 +3671,16 @@ addEventListener('keydown',e=>{
   }
 }, true);
 
+/* Имя сцены приходит из адресной строки, то есть снаружи. Поэтому проверяем
+   его по белому списку: подходит только то, что есть среди наших сцен.
+   Проверяем через hasOwnProperty, а не через `in`: оператор `in` находит и
+   унаследованные свойства объекта — constructor, toString, __proto__, — так
+   что адрес вида #constructor прошёл бы проверку и уронил сцену. */
+const isScene = k => Object.prototype.hasOwnProperty.call(SCENES, k);
+
 addEventListener('hashchange',()=>{
   const k=location.hash.slice(1);
-  if(k in SCENES && k!==current) go(k);
+  if(isScene(k) && k!==current) go(k);
 });
 
 console.log('%cЭкскурсия «Академия улыбки»','color:#1B3D96;font-weight:600',
@@ -3687,7 +3688,8 @@ console.log('%cЭкскурсия «Академия улыбки»','color:#1B3
 document.querySelector('.brand').title = 'Сборка ' + BUILD;
 
 buildDock();
-go(location.hash.slice(1) in SCENES ? location.hash.slice(1) : 'reception', true);
+const first = location.hash.slice(1);
+go(isScene(first) ? first : 'reception', true);
 Object.values(SCENES).forEach(s=>{const i=new Image();i.src=s.img;});
 </script>
 </body>
