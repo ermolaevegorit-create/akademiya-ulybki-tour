@@ -11,7 +11,7 @@
 <!-- Политика безопасности. frame-ancestors, X-Frame-Options, Permissions-Policy
      и X-Content-Type-Options в <meta> браузер не читает — это только HTTP-заголовки,
      на GitHub Pages их не задать. Настроим на своём хостинге. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; form-action 'none'; img-src 'self' data:; font-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'sha256-MBTOPsD3ioFZwuX/aqLQmuL2hc4D1DPgQBKwa/S5hG8='; connect-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; form-action 'none'; img-src 'self' data:; font-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'sha256-G5+Xuu//FA22UNaSlhdKreILeXNCQ0XK42iBQMNjB7A='; connect-src 'self'">
 <link rel="canonical" href="https://ermolaevegorit-create.github.io/akademiya-ulybki-tour/">
 <style>
 /* Шрифты лежат рядом с экскурсией, а не грузятся с серверов Google.
@@ -1077,7 +1077,7 @@ img{display:block;max-width:100%}
    ===================================================================== */
 /* Отметка сборки: видно в консоли браузера (F12) и в подсказке логотипа.
    Нужна, чтобы отличать свежую версию от закэшированной. */
-const BUILD = '01.10.2026 10:05';
+const BUILD = '01.10.2026 14:30';
 
 /* Адрес рабочего сайта. Объявлен до ITEMS и DOCS: обе структуры собирают
    из него ссылки прямо при инициализации. */
@@ -1838,10 +1838,20 @@ const SPAWN_GRACE = {
    по тому, что он идёт медленнее соседей, и по тому, что он не сносится
    с удара. Объяснять это словами на старте было бы лишним. */
 const HEAVY = {
-  /* r заметно больше, чем у large (52): мини-босс обязан читаться крупнее
-     обычного крупного очага, иначе по размеру его от них не отличить. */
-  pts:160, r:64, hits:10,
-  col:'#2A1713', col2:'#5C2B21',
+  /* Размер и цвет — не косметика, а то, как игрок понимает, что перед ним.
+     Был радиус 64 при боссовых 70 и та же тёмно-бордовая палитра: разница
+     в девять процентов, те же глаза — и в бою это читалось как второй
+     супер-кариес, приходящий каждые полминуты.
+     Теперь он чуть крупнее обычного большого очага (52) и заметно мельче
+     босса, а главное — другого цвета: это зубной камень, твёрдый налёт,
+     он и в жизни серо-бежевый, а не бордовый. Сколы светлые, чтобы было
+     видно, как корка отлетает с каждого удара. */
+  pts:160, r:54, hits:10,
+  /* Три цвета, а не два, потому что у них разный фон. col — тело.
+     chip — сколы корки, они лежат НА тёмном теле и потому светлые.
+     col2 — частицы и подпись с очками: они летят по почти белому полю,
+     и светлыми их там просто не видно. */
+  col:'#5B5443', chip:'#A79B80', col2:'#4A4437',
   speedK:0.78,                     /* чуть медленнее обычного потока */
   /* Порог по очкам — только чтобы он не выпал в первые секунды, пока человек
      ещё ловит управление. Раньше здесь стояло 4000, и отсчёт паузы начинался
@@ -3214,7 +3224,7 @@ function gDraw(){
       }
       ctx.closePath(); ctx.fill();
       /* корка: чем меньше осталось ударов, тем больше сколов светлее */
-      ctx.fillStyle=HEAVY.col2;
+      ctx.fillStyle=HEAVY.chip;
       const chips=[[-.40,-.28,.17],[.36,-.32,.14],[.08,.40,.16],[-.28,.32,.12],[.42,.18,.11]];
       chips.forEach((o,ci)=>{
         if(ci > (1-b.hits/b.hits0)*chips.length) return;
@@ -3234,14 +3244,15 @@ function gDraw(){
       ctx.save(); ctx.rotate(0.26);
       ctx.fillRect( r*.10,-r*.30,r*.34,r*.10); ctx.restore();
       ctx.rotate(-Math.sin(b.a)*0.10);
-      /* Точки оставшихся ударов — тот же язык, что у обычных очагов,
-         только их десять. Полосу здоровья оставляем супер-кариесу. */
-      const dots=b.hits, dr=2.6, gap=7.4;
-      const row=Math.min(dots,5), rows=Math.ceil(dots/5);
-      ctx.fillStyle=HEAVY.col2;
-      for(let d=0; d<dots; d++){
+      /* Точки оставшихся ударов — ровно тот же синий, что у обычных очагов,
+         и погасшие так же бледнеют. Это и есть главный сигнал: перед вами
+         свой же очаг, только с десятью касаниями, а не второй босс.
+         Полосу здоровья оставляем супер-кариесу — она одна на всю игру. */
+      const dr=2.6, gap=7.4, rows=Math.ceil(HEAVY.hits/5);
+      for(let d=0; d<HEAVY.hits; d++){
         const ri=Math.floor(d/5), ci=d%5;
-        const n=(ri===rows-1) ? (dots-ri*5) : 5;
+        const n=(ri===rows-1) ? (HEAVY.hits-ri*5) : 5;
+        ctx.fillStyle = d<b.hits ? '#1B3D96' : 'rgba(27,61,150,.22)';
         ctx.beginPath();
         ctx.arc((ci-(n-1)/2)*gap, -r-12-ri*gap, dr, 0, 6.29);
         ctx.fill();
